@@ -1,16 +1,25 @@
 function toggleSettlementPage(isOpen) {
   var page = document.getElementById('settlementPage');
   if (!page) return;
+  var wasOpen = page.classList.contains('active');
   page.classList.toggle('active', !!isOpen);
   page.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
-  document.body.classList.toggle('no-scroll', !!isOpen);
+  if (isOpen) {
+    document.body.classList.add('no-scroll');
+  } else if (wasOpen) {
+    var unlockScroll = function(event){
+      if (event && (event.target !== page || event.propertyName !== 'opacity')) return;
+      page.removeEventListener('transitionend', unlockScroll);
+      if (!page.classList.contains('active')) document.body.classList.remove('no-scroll');
+    };
+    page.addEventListener('transitionend', unlockScroll);
+    window.setTimeout(function(){ unlockScroll(); }, 260);
+  } else {
+    document.body.classList.remove('no-scroll');
+  }
 }
 
 function openSettlementPage() {
-  if (location.hash !== '#settlement') {
-    location.hash = 'settlement';
-    return;
-  }
   toggleSettlementPage(true);
   window.dispatchEvent(new CustomEvent('settlement:opened'));
 }

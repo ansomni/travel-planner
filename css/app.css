@@ -118,8 +118,9 @@ details p{margin:6px 0 0;color:var(--mute)}
 #expenseTable tr:last-child td{border-bottom:1px solid var(--line)}
 #transferBox{background:#fff8d9;border:1px solid #f0e2a4}
 :root[data-theme="dark"] #transferBox{background:#3a341f;border-color:#6e6235}
-.settlement-page{position:fixed;inset:0;z-index:120;background:var(--bg);display:none;overflow-y:auto;pointer-events:none}.settlement-page.active{pointer-events:auto}
-.settlement-page.active{display:block}
+.settlement-page{position:fixed;inset:0;z-index:120;background:var(--bg);display:block;overflow-y:auto;pointer-events:none;visibility:hidden;opacity:0;transform:translateY(10px) scale(.985);transform-origin:center center;transition:opacity .22s ease,transform .22s ease,visibility 0s linear .22s}
+.settlement-page.active{pointer-events:auto;visibility:visible;opacity:1;transform:translateY(0) scale(1);transition:opacity .22s ease,transform .22s ease,visibility 0s}
+@media(prefers-reduced-motion:reduce){.settlement-page,.settlement-page.active{transition:none}}
 .settlement-page header{position:sticky;top:0;z-index:2;background:var(--bg);padding:12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
 .settlement-page h2{margin:0;font-size:15px}
 .settlement-page .content{padding:12px 12px 20px}
@@ -138,7 +139,7 @@ details p{margin:6px 0 0;color:var(--mute)}
 .trip-form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}.trip-gate-status{min-height:1.4em;margin:12px 0 0!important;color:var(--accent)!important;font-size:12px}
 .app-header-title{min-width:0}.app-header-title p{margin:0;color:var(--mute);font-size:11.5px}
 body> #tripApp>header{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.app-header-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}.app-header-actions .btn{font-size:10px}.app-icon-button{padding:0!important}.app-icon-button img{width:16px;height:16px;display:block}
+.app-header-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}.app-header-actions .btn{font-size:10px}.app-icon-button{padding:0!important}.app-icon-button img{width:18px;height:18px;display:block}
 .day-actions{position:sticky;top:calc(env(safe-area-inset-top,0px) + 42px);z-index:6;display:block;padding:0;background:var(--bg);border-bottom:1px solid var(--line)}
 .tabs{overflow-x:auto;justify-content:flex-start;-ms-overflow-style:none;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tabs button{flex:0 0 auto;min-width:68px;max-width:150px;white-space:nowrap}.tabs button{overflow:hidden;text-overflow:ellipsis}
 .day-settlement-btn{display:block;width:100%;height:30px;border:0;border-radius:0;background:var(--soft);color:var(--accent);font:600 11.5px/1 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;cursor:pointer}
@@ -286,11 +287,37 @@ main{padding-bottom:72px}
 @media(max-width:600px){.edit-toast{white-space:normal;max-width:90vw;text-align:center;border-radius:14px}.trip-edit-fab{min-width:76px;padding:0 14px}.trip-edit-cancel-floating{right:104px}.res-actions{gap:6px}}
 @media(max-width:600px){
   #tripApp main{padding-left:16px;padding-right:16px}
-  #tripApp main{font-size:14px}
-  #tripApp main table{font-size:13px}
-  #tripApp main th{font-size:12.5px}
-  #tripApp main .note,#tripApp main .empty-hint{font-size:12.5px}
-  #tripApp main .quick-link .title{font-size:14px}
+  #tripApp main{font-size:15px}
+  #tripApp main table{font-size:14px}
+  #tripApp main th{font-size:13.5px}
+  #tripApp main .note,#tripApp main .empty-hint{font-size:13.5px}
+  #tripApp main .quick-link .title{font-size:15px}
+  #tripApp main .trip-panel h2{font-size:15px}
+  #tripApp main .ticket-card div[style*="font-weight"]{font-size:14px!important}
+  .tabs button{font-size:13px}
+  .tabs button b{font-size:14px}
+  .hero-eyebrow{font-size:13px}
+  .hero-title{font-size:29px}
+  .hero-description{font-size:15px}
+  .action-card__title{font-size:17px}
+  .action-card__description{font-size:14px}
+  .action-card__eyebrow{font-size:13px}
+  .trip-code-header{padding-left:8px;padding-right:8px}
+  .trip-code-header h1{font-size:27px}
+  .trip-code-header p{font-size:15px;line-height:23px}
+  .trip-form-card label{font-size:15px}
+  .trip-code-search-button{font-size:15px}
+  .recent-trip-heading h2{font-size:17px}
+  .recent-trip-heading span,.recent-trip-open span{font-size:13px}
+  .recent-trip-open b{font-size:16px}
+  .recent-trip-section{padding:0 8px}
+  body> #tripApp>header{padding-left:20px;padding-right:16px}
+  .app-header-title h1{font-size:19px}
+  .app-header-title p{font-size:12.5px}
+  .tabs{padding-left:16px;padding-right:16px}
+  .day-actions{padding-left:16px;padding-right:16px}
+  .day-settlement-btn{font-size:14px}
+  .trip-gate-status{font-size:13px}
 }
 
 .edit-toast{white-space:pre-line!important;max-width:90vw;text-align:center;border-radius:14px}
