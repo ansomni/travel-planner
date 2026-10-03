@@ -1,0 +1,204 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>여행 일정 관리</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1c6f9c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="여행 일정">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<section id="tripGate" class="trip-gate" aria-live="polite">
+<div class="trip-gate-card home-content">
+<div id="tripGateHome">
+<section class="hero-section">
+<div class="hero-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"></path><path d="M9 4v13.5M15 6.5V20"></path></svg></div>
+<p class="hero-eyebrow">YOUR TRAVEL, TOGETHER</p>
+<h1 class="hero-title">여행을 한 곳에<br><span>가볍게 기록해요</span></h1>
+<p class="hero-description">일정부터 예약, 체크리스트와 정산까지<br>여행에 필요한 모든 것을 한 공간에서.</p>
+</section>
+<div class="action-card-list">
+<button id="resumeTrip" class="action-card action-card--recent" type="button"><span class="action-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg></span><span class="action-card__content"><span class="action-card__eyebrow">최근 여행 이어서 하기</span><span id="recentTripTitle" class="action-card__title">아직 최근 여행이 없어요</span><span id="recentTripDates" class="action-card__description">여행코드로 조회하거나 새 여행을 만들어보세요.</span></span><span class="action-card__arrow" aria-hidden="true">→</span></button>
+<button id="openJoinTrip" class="action-card" type="button"><span class="action-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6"></circle><path d="m20 20-4.2-4.2"></path></svg></span><span class="action-card__content"><span class="action-card__title">여행코드로 조회하기</span><span class="action-card__description">공유받은 여행 코드를 입력해요</span></span><span class="action-card__arrow" aria-hidden="true">→</span></button>
+<button id="openCreateTrip" class="action-card" type="button"><span class="action-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span><span class="action-card__content"><span class="action-card__title">여행 새로 만들기</span><span class="action-card__description">새로운 여행을 함께 준비해요</span></span><span class="action-card__arrow" aria-hidden="true">→</span></button>
+</div>
+</div>
+<form id="joinTripForm" class="trip-form trip-code-page" hidden>
+<button class="icon-back-button" type="button" data-gate-back aria-label="뒤로가기">‹</button>
+<header class="trip-code-header"><h1>여행을 불러올까요?</h1><p>여행코드를 입력하거나 최근에 조회한 여행을 선택하세요.</p></header>
+<div class="trip-form-card"><label>새 여행코드 입력<div class="trip-code-input-wrap"><span aria-hidden="true">⌕</span><input id="joinTripCode" type="text" maxlength="6" autocomplete="off" placeholder="여행코드 6자리" required></div></label><button class="trip-code-search-button" type="submit">조회하기</button></div>
+<section class="recent-trip-section"><div class="recent-trip-heading"><h2>최근 조회한 여행</h2><span id="recentTripCount">0개</span></div><div id="recentTripList" class="recent-trip-list"></div></section>
+</form>
+<form id="createTripForm" class="trip-form trip-code-page" hidden>
+<button class="icon-back-button" type="button" data-gate-back aria-label="뒤로가기">‹</button>
+<header class="trip-code-header"><h1>새로운 여행을 시작해요</h1><p>여행 정보와 함께 사용할 코드를 설정해 주세요.</p></header>
+<div class="trip-form-card create-trip-card"><label>여행지<input id="newTripDestination" type="text" maxlength="80" placeholder="어디로 떠나나요?" required></label><div class="trip-date-fields"><label>시작일<input id="newTripStart" type="text" inputmode="numeric" maxlength="10" placeholder="YYYY/MM/DD" required></label><label>종료일<input id="newTripEnd" type="text" inputmode="numeric" maxlength="10" placeholder="YYYY/MM/DD" required></label></div><p id="newTripDateError" class="trip-field-error" hidden>날짜 정보를 확인해 주세요.</p><label>여행코드<input id="newTripCode" type="text" minlength="6" maxlength="6" autocomplete="off" placeholder="숫자와 알파벳 6자리" required></label><label>비밀번호<input id="newTripPin" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="숫자 4자리" required></label><button class="trip-code-search-button" type="submit">여행 만들기</button></div>
+</form>
+<button id="importLegacyTrip" type="button" hidden>현재 백두산 일정 가져오기</button><button id="deleteTripCache" type="button" hidden>이 기기의 여행 저장 데이터 삭제</button>
+<p id="tripGateStatus" class="trip-gate-status" role="status"></p>
+</div>
+</section>
+<div id="tripApp" hidden>
+<header>
+<div class="app-header-title"><h1 id="tripTitle">여행 일정</h1><p id="tripDates"></p></div>
+<div class="app-header-actions"><button class="btn icon-plain app-icon-button" id="tripLoginBtn" type="button" aria-label="사용자" title="사용자"><img src="icons/user.svg" alt=""></button><button class="btn icon-plain app-icon-button" id="leaveTripBtn" type="button" aria-label="여행 나가기" title="여행 나가기"><img src="icons/out.svg" alt=""></button></div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="일차 선택">
+<button role="tab" aria-selected="true" aria-controls="p0" id="t0"><b>여행 전</b>안내 사항</button>
+<button role="tab" aria-selected="false" aria-controls="p1" id="t1"><b>1일차</b>연길</button>
+<button role="tab" aria-selected="false" aria-controls="p2" id="t2"><b>2일차</b>북파</button>
+<button role="tab" aria-selected="false" aria-controls="p3" id="t3"><b>3일차</b>서파</button>
+<button role="tab" aria-selected="false" aria-controls="p4" id="t4"><b>4일차</b>귀국</button>
+</nav>
+<div class="day-actions"><button class="day-settlement-btn" type="button" onclick="openSettlementPage()">💸 여행 정산 열기</button></div>
+<button id="tripEditBtn" class="trip-edit-fab trip-edit-floating" type="button" aria-label="현재 탭 편집" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>편집</button><button id="tripEditSaveBtn" class="trip-edit-fab trip-edit-floating trip-edit-save" type="button" aria-label="편집 내용 저장" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"></path></svg>저장</button><button id="tripEditCancelBtn" class="trip-edit-fab trip-edit-cancel trip-edit-cancel-floating" type="button" aria-label="편집 취소" title="편집 취소" hidden>취소</button>
+
+<main></main>
+
+<section id="settlementPage" class="settlement-page" aria-hidden="true">
+<header>
+<h2>여행 비용 정산</h2>
+<div class="settle-header-tools">
+<button class="btn icon-close" id="closeSettlementBtn" type="button" aria-label="닫기">✕</button>
+</div>
+</header>
+<div class="content">
+<div class="wrap settle-box">
+<p id="remoteStatus" class="remote-status">공유 저장 준비 중...</p>
+<div id="pullRefreshIndicator" class="pull-indicator" aria-hidden="true"><span class="pull-icon">↻</span><span id="pullRefreshText">새로고침하기</span></div>
+<div id="pullContent" class="pull-content">
+
+<div class="settle-inline-tools" aria-label="정산 도구">
+<button class="btn icon-plain app-icon-button" id="unlockBtn" type="button" aria-label="사용자" title="사용자"><img src="icons/user.svg" alt=""></button>
+<button class="btn icon-plain app-icon-button" id="openSettingsBtn" type="button" aria-label="설정" title="설정"><img src="icons/settings.svg" alt=""></button>
+</div>
+
+<div class="settle-add">
+<select id="payerInput"></select>
+<input id="itemInput" type="text" placeholder="항목">
+<select id="currencyInput">
+<option value="KRW">KRW</option>
+</select>
+<input id="amountInput" type="number" min="0" step="0.01" placeholder="금액">
+<button class="btn primary" id="addExpenseBtn" type="button">항목 추가</button>
+</div>
+
+<table id="expenseTable">
+<thead>
+<tr><th class="payer-cell">결제</th><th>항목</th><th class="amount-cell"><span class="th-inline-toggle"><button class="th-toggle-btn" id="toggleKrwViewBtn" type="button" aria-label="원화로만 보기" title="원화로만 보기">₩</button> 금액</span></th><th class="include-cell">정산</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<div class="settle-result" id="summaryBox">
+<h3>정산 요약</h3>
+<div id="summaryContent">항목을 추가하면 자동 계산됩니다.</div>
+</div>
+
+<div class="settle-result" id="transferBox">
+<h3>송금 가이드</h3>
+<div id="transferContent">항목을 추가하면 누가 누구에게 보내야 하는지 표시됩니다.</div>
+</div>
+</div>
+</div>
+</div>
+<div id="editNoticeToast" class="edit-toast" aria-hidden="true">로그인 해주세요! 현재 변경은 이 기기에만 저장돼요.</div>
+</section>
+
+<div id="settingsModal" class="modal" aria-hidden="true">
+<div class="modal-content">
+<div class="modal-header">
+<h2><img class="modal-title-icon" src="icons/settings.svg" alt=""> 설정</h2>
+<button class="modal-close" id="closeSettingsBtn" type="button">✕</button>
+</div>
+<div class="modal-body">
+<div class="participants-box" style="margin-bottom:10px;">
+<h3>통화 · 환율</h3>
+<div id="currencyList" class="currency-list"></div>
+<div class="currency-add">
+<input id="currencyCodeInput" type="text" maxlength="3" placeholder="통화" autocomplete="off">
+<input id="currencyRateInput" type="number" min="0" step="0.0001" placeholder="KRW">
+<button class="btn" id="applyFxBtn" type="button">추가</button>
+</div>
+<div class="currency-quick"><button type="button" data-quick-currency="USD">USD</button><button type="button" data-quick-currency="JPY">JPY</button><button type="button" data-quick-currency="CNY">CNY</button><button type="button" data-quick-currency="EUR">EUR</button><button type="button" data-quick-currency="VND">VND</button></div>
+</div>
+
+<div class="participants-box">
+<h3>참여자 관리</h3>
+<div id="participantList" class="participant-list"></div>
+<div class="participant-add">
+<input id="participantInput" type="text" placeholder="참여자 이름 추가">
+<button class="btn" id="addParticipantBtn" type="button">추가</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="unlockModal" class="modal" aria-hidden="true">
+<div class="modal-content" style="max-width:360px;">
+<div class="modal-header">
+<h2>🔒 잠금 해제</h2>
+<button class="modal-close" id="closeUnlockBtn" type="button">✕</button>
+</div>
+<div class="modal-body">
+<div id="unlockFormSection">
+<input id="unlockPinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="PIN 4자리 입력" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit">
+<p id="unlockError" class="unlock-error"></p>
+<div class="unlock-actions">
+<button class="btn" id="unlockSubmitBtn" type="button">확인</button>
+</div>
+</div>
+<div id="unlockLoggedInSection" hidden>
+<p class="unlock-status">로그인 되어 있습니다.</p>
+<div class="unlock-actions">
+<button class="btn icon-plain app-icon-button" id="logoutBtn" type="button" aria-label="사용자" title="사용자"><img src="icons/user.svg" alt=""></button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
+
+<div id="tripLoginModal" class="modal" aria-hidden="true">
+<div class="modal-content" style="max-width:360px">
+<div class="modal-header"><h2>여행 편집 로그인</h2><button class="modal-close" id="closeTripLogin" type="button" aria-label="닫기">✕</button></div>
+<div class="modal-body"><label class="trip-form">여행 코드<input id="tripLoginCode" type="text" maxlength="6" autocomplete="off" placeholder="예: 2610JP"></label><label class="trip-form" style="margin-top:10px">편집 비밀번호<input id="tripLoginPin" type="password" inputmode="numeric" maxlength="4" placeholder="숫자 4자리"></label><p id="tripLoginStatus" class="trip-gate-status" role="status"></p><div class="trip-form-actions"><button id="submitTripLogin" class="btn primary" type="button">로그인</button></div></div>
+</div>
+</div>
+
+<div id="reservationViewModal" class="modal" aria-hidden="true">
+<div class="modal-content reservation-view-content"><div class="modal-header"><h2 id="reservationViewTitle">예약 정보</h2><button class="modal-close" id="closeReservationView" type="button" aria-label="닫기">✕</button></div><div id="reservationViewBody" class="modal-body"></div></div>
+</div>
+
+<div id="tripEditorModal" class="modal" aria-hidden="true">
+<div class="modal-content editor-modal-content"><div class="modal-header"><h2 id="tripEditorTitle">내용 수정</h2><button class="modal-close" id="closeTripEditor" type="button" aria-label="닫기">✕</button></div><form id="tripEditorForm" class="modal-body editor-form"></form></div>
+</div>
+
+<!-- 모달 배경 클릭 시 닫기 -->
+
+
+
+<script src="js/app.js" defer></script>
+<script src="js/tabs.js" defer></script>
+<script src="js/trip-session.js" defer></script>
+</div>
+<div id="tripConfirmModal" class="modal" aria-hidden="true">
+<div class="modal-content confirm-modal-content"><div class="modal-body"><div class="confirm-icon" aria-hidden="true">!</div><h2 id="tripConfirmTitle">삭제할까요?</h2><p id="tripConfirmMessage"></p><div class="confirm-actions"><button id="tripConfirmCancel" class="btn" type="button">취소</button><button id="tripConfirmAccept" class="btn danger" type="button">삭제</button></div></div></div>
+</div>
+<script>if('serviceWorker' in navigator) window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js'); });</script>
+</body>
+</html>
