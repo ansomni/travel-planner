@@ -1,7 +1,7 @@
 {
-  "name": "여행 일정 관리",
-  "short_name": "여행 일정",
-  "description": "일정, 예약, 체크리스트와 정산을 한 곳에서",
+  "name": "솜니투어",
+  "short_name": "솜니투어",
+  "description": "솜니투어 여행 일정과 정산",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

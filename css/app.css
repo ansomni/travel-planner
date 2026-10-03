@@ -284,6 +284,14 @@ main{padding-bottom:72px}
 .currency-list{display:grid;gap:6px;margin-bottom:8px}.currency-row{display:flex;align-items:center;gap:6px;font-size:12px}.currency-row input{width:90px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit}.currency-row button{margin-left:auto;border:0;background:none;color:var(--mute);font-size:18px;cursor:pointer}.currency-add{display:grid;grid-template-columns:90px 1fr auto;gap:6px}.currency-add input{padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit;min-width:0}
 
 @media(max-width:600px){.edit-toast{white-space:normal;max-width:90vw;text-align:center;border-radius:14px}.trip-edit-fab{min-width:76px;padding:0 14px}.trip-edit-cancel-floating{right:104px}.res-actions{gap:6px}}
+@media(max-width:600px){
+  #tripApp main{padding-left:16px;padding-right:16px}
+  #tripApp main{font-size:14px}
+  #tripApp main table{font-size:13px}
+  #tripApp main th{font-size:12.5px}
+  #tripApp main .note,#tripApp main .empty-hint{font-size:12.5px}
+  #tripApp main .quick-link .title{font-size:14px}
+}
 
 .edit-toast{white-space:pre-line!important;max-width:90vw;text-align:center;border-radius:14px}
 .currency-add{grid-template-columns:78px 1fr auto}.currency-add select{padding:7px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit;min-width:0}.currency-row{flex-wrap:nowrap;white-space:nowrap;gap:5px}.currency-row input{width:72px;min-width:0}

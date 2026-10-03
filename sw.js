@@ -1,4 +1,4 @@
-const VERSION = 'trip-v1';
+const VERSION = 'trip-v2';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'js/app.js', 'js/tabs.js', 'js/trip-session.js',
   'icons/user.svg', 'icons/out.svg', 'icons/settings.svg', 'icons/icon-192.png'
