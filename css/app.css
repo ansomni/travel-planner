@@ -43,8 +43,9 @@ details p{margin:6px 0 0;color:var(--mute)}
 .modal-content{background:var(--card);margin:0 auto;padding:0;width:90%;max-width:500px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.2)}
 .modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--line)}
 .modal-header h2{margin:0;font-size:16px}
-.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--mute);padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
-.modal-close:hover{color:var(--ink)}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--mute);padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;line-height:1}
+.modal-close svg,.btn.icon-close svg{width:18px;height:18px;display:block;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.modal-close:hover,.btn.icon-close:hover{color:var(--ink)}
 .modal-tabs{display:flex;border-bottom:1px solid var(--line);padding:0 16px}
 .modal-tab-btn{flex:1;padding:12px 0;border:none;background:none;cursor:pointer;color:var(--mute);font-weight:600;font-size:13px;border-bottom:3px solid transparent;transition:all 0.2s}
 .modal-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
@@ -73,8 +74,7 @@ details p{margin:6px 0 0;color:var(--mute)}
 .btn.mini-del{width:20px;height:20px;padding:0;border-radius:999px;border:0;background:transparent;color:var(--mute);font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:all .15s ease}
 .btn.mini-del:hover{background:var(--soft);color:var(--ink)}
 .btn.mini-del:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.btn.icon-close{border:0;background:none;color:var(--mute);width:32px;height:32px;padding:0;font-size:24px;display:flex;align-items:center;justify-content:center}
-.btn.icon-close:hover{color:var(--ink)}
+.btn.icon-close{border:0;background:none;color:var(--mute);width:28px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;line-height:1}
 .settle-header-tools{display:flex;gap:2px;align-items:center}
 .btn.icon-plain{border:0;background:none;color:var(--mute);width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:16px}
 .btn.icon-plain:hover{color:var(--mute);background:none;border-radius:999px}
