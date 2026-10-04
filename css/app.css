@@ -139,7 +139,7 @@ details p{margin:6px 0 0;color:var(--mute)}
 .trip-form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}.trip-gate-status{min-height:1.4em;margin:12px 0 0!important;color:var(--accent)!important;font-size:12px}
 .app-header-title{min-width:0}.app-header-title p{margin:0;color:var(--mute);font-size:11.5px}
 body> #tripApp>header{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.app-header-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}.app-header-actions .btn{font-size:10px}.app-icon-button{padding:0!important}.app-icon-button img{width:18px;height:18px;display:block}
+.app-header-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}.app-header-actions .btn{font-size:10px}.app-icon-button{width:30px;height:30px;flex:0 0 30px;padding:0!important}.app-icon-button img{width:18px;height:18px;display:block;object-fit:contain}
 .day-actions{position:sticky;top:calc(env(safe-area-inset-top,0px) + 42px);z-index:6;display:block;padding:0;background:var(--bg);border-bottom:1px solid var(--line)}
 .tabs{overflow-x:auto;justify-content:flex-start;-ms-overflow-style:none;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tabs button{flex:0 0 auto;min-width:68px;max-width:150px;white-space:nowrap}.tabs button{overflow:hidden;text-overflow:ellipsis}
 .day-settlement-btn{display:block;width:100%;height:30px;border:0;border-radius:0;background:var(--soft);color:var(--accent);font:600 11.5px/1 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;cursor:pointer}
@@ -335,10 +335,13 @@ main{padding-bottom:72px}
 .edit-toast{font-size:13.5px}
 .trip-loading-box p{font-size:16px}
 .day-settlement-btn{height:34px}
-#closeSettlementBtn:hover,#closeSettlementBtn:active{background:transparent}
+#closeSettlementBtn:hover,#closeSettlementBtn:active,#closeSettlementBtn:focus{background:transparent!important;box-shadow:none;-webkit-tap-highlight-color:transparent}
+#closeSettlementBtn{-webkit-tap-highlight-color:transparent}
 .confirm-modal-content h2{font-size:17px}
 .confirm-modal-content p{font-size:13px}
 .confirm-actions #tripConfirmCancel[hidden]+#tripConfirmAccept{grid-column:1/-1;justify-self:center;min-width:120px}
 .checklist-item{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;align-items:start}
 .checklist-item .display-check{margin:3px 0 0}
 .action-card:not(.action-card--recent){padding-top:21.3px;padding-bottom:21.3px}
+.tabs button .tab-date-label{color:var(--mute);font-weight:400}
+.editor-form-hint{color:var(--mute);font-size:11px;font-weight:400;line-height:1.4}

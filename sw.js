@@ -1,7 +1,7 @@
-const VERSION = 'trip-v2';
+const VERSION = 'trip-v3';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'js/app.js', 'js/tabs.js', 'js/trip-session.js',
-  'icons/user.svg', 'icons/out.svg', 'icons/settings.svg', 'icons/icon-192.png'
+  'icons/user.svg', 'icons/out.svg', 'icons/home.svg', 'icons/settings.svg', 'icons/icon-192.png'
 ];
 const RUNTIME_HOSTS = ['www.gstatic.com', 'cdn.jsdelivr.net'];
 const IMAGE_CACHE = 'trip-images';

@@ -18,6 +18,7 @@
   var fns = null;
   var lockHeld = false;
   var lockTimer = null;
+  var lockLossHandling = false;
   var authReady = null;
   var legacyImport = false;
   var main = document.querySelector('main');
@@ -51,7 +52,7 @@
       destination: String(raw.destination || '~를 입력해주세요'),
       startDate: String(raw.startDate || ''),
       endDate: String(raw.endDate || ''),
-      preTrip: Object.assign({title:'여행 전 · 안내 사항', checklist:[], note:''}, raw.preTrip || {}),
+      preTrip: Object.assign({title:'여행 전 · 기본 정보', checklist:[], note:''}, raw.preTrip || {}),
       days: Array.isArray(raw.days) ? raw.days.map(function(day){return Object.assign({items:[],note:''},day,{items:Array.isArray(day.items)?day.items:[],links:Array.isArray(day.links)?day.links:[]});}) : [],
       reservations: (function(){
         var source=Object.assign({tickets:[],hotels:[],transport:[]},raw.reservations || {});
@@ -112,7 +113,10 @@
     if(count) count.textContent=trips.length+'개';
     if(list) list.innerHTML=trips.length ? trips.map(function(trip){return '<div class="recent-trip-item"><button type="button" class="recent-trip-open" data-recent-code="'+trip.code+'"><b>'+escapeHtml(trip.content.title || trip.content.destination || trip.code)+'</b><span>'+escapeHtml(formatDate(trip.content.startDate)+' — '+formatDate(trip.content.endDate))+'</span></button><button type="button" class="recent-trip-delete" data-delete-recent="'+trip.code+'" aria-label="'+escapeHtml(trip.code)+' 삭제">×</button></div>';}).join('') : '<p class="recent-trip-empty">최근 조회한 여행이 없어요.</p>';
   }
-  function saveDraft(code, data){ try{localStorage.setItem(draftKey(code),JSON.stringify(data));}catch(e){} }
+  function saveDraft(code, data){
+    try{localStorage.setItem(draftKey(code),JSON.stringify(data));return true;}
+    catch(error){console.error('Failed to save local trip draft',error);return false;}
+  }
   function readDraft(code){ try{var raw=localStorage.getItem(draftKey(code));return raw?JSON.parse(raw):null;}catch(e){return null;} }
   function clearDraft(code){ try{localStorage.removeItem(draftKey(code));}catch(e){} }
   function setGateStatus(message, isError){ if(statusEl){ statusEl.textContent = message || ''; statusEl.classList.toggle('error', !!isError); } }
@@ -139,18 +143,37 @@
     var parts = String(date).split('-');
     return parts.length === 3 ? parts[0] + '.' + parts[1] + '.' + parts[2] : date;
   }
-  function tabLabel(day){
-    if(day.tabLabel) return day.tabLabel;
-    var rest = String(day.title || '').replace(/^\s*\d+\s*일차\s*[·\-:|]?\s*/, '');
-    return rest.split(/[\s·]+/)[0] || '';
+  function tabDate(day,index){
+    var normalizeDate = function(value){
+      var match = String(value || '').match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+      if(!match) return '';
+      var date = new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3])));
+      if(date.getUTCFullYear() !== Number(match[1]) || date.getUTCMonth() !== Number(match[2])-1 || date.getUTCDate() !== Number(match[3])) return '';
+      return date.toISOString().slice(0,10);
+    };
+    var existingDate = normalizeDate(day.date);
+    if(existingDate) return existingDate;
+    var startDate = normalizeDate(content.startDate);
+    if(!startDate) return '';
+    var date = new Date(startDate + 'T12:00:00Z');
+    date.setUTCDate(date.getUTCDate() + index);
+    return date.toISOString().slice(0,10);
+  }
+  function tabLabel(day,index){
+    var label = String(day.tabLabel || '').trim();
+    if(label) return label;
+    var date = tabDate(day,index);
+    return date ? date.slice(5).replace('-', '/') : '';
   }
   function makeNav(){
     var current = panelsNav.querySelector('[aria-selected="true"]');
     var keepId = current ? current.getAttribute('aria-controls') : '';
     if(!/^trip-panel-(pre|\d+)$/.test(keepId) || (keepId !== 'trip-panel-pre' && Number(keepId.slice(11)) >= content.days.length)) keepId = 'trip-panel-pre';
-    var buttons = ['<button role="tab" aria-selected="' + (keepId === 'trip-panel-pre') + '" aria-controls="trip-panel-pre" data-panel="trip-panel-pre"><b>여행 전</b>안내</button>'];
+    var buttons = ['<button role="tab" aria-selected="' + (keepId === 'trip-panel-pre') + '" aria-controls="trip-panel-pre" data-panel="trip-panel-pre"><b>여행 전</b>기본 정보</button>'];
     content.days.forEach(function(day, i){
-      buttons.push('<button role="tab" aria-selected="' + (keepId === 'trip-panel-' + i) + '" aria-controls="trip-panel-' + i + '" data-panel="trip-panel-' + i + '"><b>' + (i + 1) + '일차</b>' + escapeHtml(tabLabel(day)) + '</button>');
+      var customLabel = String(day.tabLabel || '').trim();
+      var labelClass = customLabel ? '' : ' class="tab-date-label"';
+      buttons.push('<button role="tab" aria-selected="' + (keepId === 'trip-panel-' + i) + '" aria-controls="trip-panel-' + i + '" data-panel="trip-panel-' + i + '"><b>' + (i + 1) + '일차</b><span' + labelClass + '>' + escapeHtml(tabLabel(day,i)) + '</span></button>');
     });
     panelsNav.innerHTML = buttons.join('');
   }
@@ -251,9 +274,15 @@
   }
   function switchPanel(nextId){
     if(editing && dirty){
-      var leave = window.confirm('저장 전에 페이지를 나가면 변경 내용이 취소됩니다. 나갈까요?');
-      if(!leave) return;
-      cancelEditing();
+      askConfirm(
+        '저장하지 않은 변경이 있어요',
+        '저장하지 않은 내용은 사라지고 편집 모드가 종료돼요. 이 탭으로 이동할까요?',
+        function(){ cancelEditing().then(function(){ showPanel(nextId); }); },
+        '탭 이동',
+        true,
+        '계속 편집'
+      );
+      return;
     }else if(editing){ cancelEditing(); }
     showPanel(nextId);
   }
@@ -270,20 +299,47 @@
     return call('acquireTripEditLock', {code:activeCode}).then(function(){
       lockHeld = true;
       clearInterval(lockTimer);
-      lockTimer = setInterval(function(){ call('renewTripEditLock', {code:activeCode}).catch(function(){}); }, 30000);
+      lockTimer = setInterval(function(){
+        call('renewTripEditLock', {code:activeCode}).catch(function(error){ handleEditLockLoss(error); });
+      }, 30000);
       beginEditing();
     });
   }
   function beginEditing(){
     var savedDraft = readDraft(activeCode);
     editBaseline = JSON.stringify(content);
-    if(savedDraft && window.confirm('이 기기에 저장되지 않은 편집 내용이 있습니다. 복구할까요?')){
+    if(savedDraft){
       content = safeContent(savedDraft); dirty = true;
-    }else{
-      clearDraft(activeCode); dirty = false;
     }
     editing = true; showEditControls(true); renderPanels(); showPanel(activePanelId());
-    toast('편집 모드입니다. 항목을 누르면 수정할 수 있어요.');
+    if(savedDraft) showNotice('임시 저장된 내용을 불러왔어요','이 기기에 저장해 둔 변경 내용을 이어서 편집할 수 있어요.','✓');
+  }
+  function finishEditingWithDraftNotice(title,message,contentSaved){
+    clearInterval(lockTimer); lockTimer = null;
+    editing = false; dirty = false; lockHeld = false; showEditControls(false);
+    renderPanels(); showPanel(activePanelId());
+    showNotice(title,message,contentSaved ? '✓' : '!');
+  }
+  function handleEditLockLoss(error){
+    if(!editing || lockLossHandling) return;
+    lockLossHandling = true;
+    var code = activeCode;
+    var hadChanges = dirty;
+    var contentSaved = !hadChanges || saveDraft(code,content);
+    var expired = !!error && (error.code === 'functions/aborted' || /편집 (?:시간|권한)이 만료/.test(error.message || ''));
+    releaseLock().then(function(){
+      finishEditingWithDraftNotice(
+        expired ? '편집 권한이 만료됐어요' : '편집 권한을 확인할 수 없어요',
+        !hadChanges
+          ? '편집 권한이 끝났어요.\n계속 편집하려면 편집 버튼을 눌러 주세요.'
+          : contentSaved
+            ? '변경 내용은 이 기기에 임시 저장했어요.\n편집 버튼을 누르면 이어서 불러올 수 있어요.'
+            : '변경 내용을 이 기기에 저장하지 못했어요.\n화면을 닫지 말고 내용을 확인해 주세요.'
+              + (error && error.message ? '\n' + error.message : ''),
+        contentSaved
+      );
+      lockLossHandling = false;
+    });
   }
   function releaseLock(){
     clearInterval(lockTimer); lockTimer = null;
@@ -292,6 +348,7 @@
     return call('releaseTripEditLock', {code:activeCode}).catch(function(){});
   }
   function cancelEditing(){
+    showLoading('편집을 취소하고 있어요...');
     var code = activeCode;
     var original = editBaseline ? JSON.parse(editBaseline) : content;
     var cleanup = cleanupAddedStorageFiles(original,content);
@@ -299,18 +356,47 @@
     content = safeContent(original);
     return cleanup.then(releaseLock).then(function(){return navigator.onLine ? getTrip(code) : Promise.reject(new Error('offline'));}).then(function(result){
       content = safeContent(result.content); cacheTrip(activeCode, content); renderPanels(); showPanel(activePanelId());
-    }).catch(function(){ renderPanels(); showPanel(activePanelId()); });
+      hideLoading();
+    }).catch(function(){ renderPanels(); showPanel(activePanelId()); hideLoading(); });
   }
   function saveEditing(){
-    if(!editing || !navigator.onLine){ alert('온라인 연결이 필요합니다. 변경 내용은 기기에 보관했습니다.'); return; }
+    showLoading('변경 내용을 저장하고 있어요...');
+    if(!editing || !navigator.onLine){
+      hideLoading();
+      var offlineSaved = !content || !activeCode || saveDraft(activeCode,content);
+      showNotice(
+        '온라인 저장을 할 수 없어요',
+        offlineSaved
+          ? '변경 내용은 이 기기에 임시 저장했어요.\n온라인 상태에서 편집 버튼을 눌러 이어서 불러올 수 있어요.'
+          : '변경 내용을 이 기기에 저장하지 못했어요.\n화면을 닫지 말고 내용을 확인해 주세요.',
+        offlineSaved ? '✓' : '!'
+      );
+      return;
+    }
     var oldContent = editBaseline ? JSON.parse(editBaseline) : {};
     saveTrip(activeCode, {content:content}).then(function(){
       return cleanupRemovedStorageFiles(oldContent,content);
     }).then(function(){
       dirty = false; cacheTrip(activeCode, content); clearDraft(activeCode); editing = false; showEditControls(false);
       return releaseLock();
-    }).then(function(){ renderPanels(); showPanel(activePanelId()); toast('저장했습니다.'); })
-      .catch(function(error){ cacheTrip(activeCode, content); alert(error.message || '저장하지 못했습니다. 변경 내용은 이 기기에 보관했습니다.'); });
+    }).then(function(){ renderPanels(); showPanel(activePanelId()); hideLoading(); toast('저장했습니다.'); })
+      .catch(function(error){
+        hideLoading();
+        cacheTrip(activeCode, content);
+        var contentSaved = saveDraft(activeCode,content);
+        var lockExpired = error && (error.code === 'functions/aborted' || /편집 (?:시간|권한)이 만료/.test(error.message || ''));
+        if(lockExpired){
+          handleEditLockLoss(error);
+          return;
+        }
+        showNotice(
+          '저장하지 못했어요',
+          contentSaved
+            ? '변경 내용은 이 기기에 임시 저장했어요.\n잠시 후 다시 저장해 주세요.'
+            : '변경 내용을 이 기기에 저장하지 못했어요.\n화면을 닫지 말고 내용을 확인해 주세요.\n' + (error.message || ''),
+          contentSaved ? '✓' : '!'
+        );
+      });
   }
   function toast(text){
     var el = document.getElementById('tripToast');
@@ -357,7 +443,7 @@
   function openEditor(title, fields, onSave){
     var modal=document.getElementById('tripEditorModal'), form=document.getElementById('tripEditorForm');
     document.getElementById('tripEditorTitle').textContent=title;
-    form.innerHTML=fields.map(function(field){var control=field.multiline?'<textarea name="'+field.name+'">'+escapeHtml(field.value||'')+'</textarea>':'<input name="'+field.name+'" type="'+(field.type||'text')+'" value="'+escapeHtml(field.value||'')+'">';return '<label>'+escapeHtml(field.label)+control+'</label>';}).join('')+'<div class="editor-form-actions"><button class="btn" type="button" data-editor-cancel>취소</button><button class="btn primary" type="submit">확인</button></div>';
+    form.innerHTML=fields.map(function(field){var control=field.multiline?'<textarea name="'+field.name+'">'+escapeHtml(field.value||'')+'</textarea>':'<input name="'+field.name+'" type="'+(field.type||'text')+'" value="'+escapeHtml(field.value||'')+'"'+(field.placeholder?' placeholder="'+escapeHtml(field.placeholder)+'"':'')+'>';return '<label>'+escapeHtml(field.label)+control+(field.hint?'<small class="editor-form-hint">'+escapeHtml(field.hint)+'</small>':'')+'</label>';}).join('')+'<div class="editor-form-actions"><button class="btn" type="button" data-editor-cancel>취소</button><button class="btn primary" type="submit">확인</button></div>';
     form.onsubmit=function(event){event.preventDefault();var values={};fields.forEach(function(field){values[field.name]=String(form.elements[field.name].value||'').trim();});if(onSave(values)!==false)modal.classList.remove('active');};
     fields.forEach(function(field){
       if(!field.mask) return;
@@ -368,17 +454,22 @@
     form.querySelector('[data-editor-cancel]').onclick=function(){modal.classList.remove('active');};
     modal.classList.add('active');setTimeout(function(){var first=form.querySelector('input,textarea');if(first)first.focus();},0);
   }
-  function askConfirm(title,message,onAccept,acceptLabel,info){
+  function askConfirm(title,message,onAccept,acceptLabel,info,cancelLabel){
     var modal=document.getElementById('tripConfirmModal');document.getElementById('tripConfirmTitle').textContent=title;document.getElementById('tripConfirmMessage').textContent=message;
     modal.classList.toggle('confirm-info',!!info); modal.querySelector('.confirm-icon').textContent=info?'?':'!';
     document.getElementById('tripConfirmAccept').textContent=acceptLabel||'삭제';
+    document.getElementById('tripConfirmCancel').textContent=cancelLabel||'취소';
     document.getElementById('tripConfirmCancel').hidden=false;
     document.getElementById('tripConfirmCancel').onclick=function(){modal.classList.remove('active');};
     document.getElementById('tripConfirmAccept').onclick=function(){modal.classList.remove('active');onAccept();};modal.classList.add('active');
   }
-  function showNotice(title,message){
+  function showNotice(title,message,icon){
     askConfirm(title,message,function(){},'확인',true);
+    if(icon) document.querySelector('#tripConfirmModal .confirm-icon').textContent=icon;
     document.getElementById('tripConfirmCancel').hidden=true;
+  }
+  function isEditLockBusy(error){
+    return !!error && (error.code === 'functions/aborted' || /다른 사람이 편집 중/.test(error.message || ''));
   }
   var swipeStart = null;
   var skipRowClick = false;
@@ -460,7 +551,9 @@
     if(note && editing){ openEditor('여행 안내 · 메모',[{name:'note',label:'내용',value:content.preTrip.note,multiline:true}],function(values){content.preTrip.note=values.note;setDirty();renderPanels();showPanel(activePanelId());}); }
     var dayTitle = event.target.closest('[data-day-title]');
     if(dayTitle && editing){
-      var titleIndex=Number(dayTitle.dataset.dayTitle);openEditor('일차 이름 수정',[{name:'title',label:'일정 제목',value:content.days[titleIndex].title},{name:'tabLabel',label:'탭 이름 (비우면 제목의 첫 단어)',value:content.days[titleIndex].tabLabel||''}],function(values){content.days[titleIndex].title=values.title;content.days[titleIndex].tabLabel=values.tabLabel;setDirty();renderPanels();showPanel(activePanelId());});
+      var titleIndex=Number(dayTitle.dataset.dayTitle), day=content.days[titleIndex], date=tabDate(day,titleIndex);
+      var dateLabel=date ? date.slice(5).replace('-', '/') : '';
+      openEditor('일차 이름 수정',[{name:'title',label:'일정 제목',value:day.title},{name:'tabLabel',label:'탭 이름',value:day.tabLabel||dateLabel}],function(values){day.title=values.title;day.tabLabel=values.tabLabel===dateLabel?'':values.tabLabel;setDirty();renderPanels();showPanel(activePanelId());});
       return;
     }
     var dayNote = event.target.closest('[data-day-note]');
@@ -794,7 +887,7 @@
       destination:'연길·백두산',
       startDate:dateMatch ? dateMatch[1]+'-'+dateMatch[2]+'-'+dateMatch[3] : '2026-10-07',
       endDate:dateMatch ? dateMatch[4]+'-'+dateMatch[5]+'-'+dateMatch[6] : '2026-10-10',
-      preTrip:{title:'여행 전 · 안내 사항',checklist:checklist,note:text(doc.querySelector('#p0 .note'))},
+      preTrip:{title:'여행 전 · 기본 정보',checklist:checklist,note:text(doc.querySelector('#p0 .note'))},
       days:days,
       reservations:{
         tickets:reserveList('baekdusanModal','.modal-image-carousel'),
@@ -956,15 +1049,26 @@
       }).catch(function(err){document.getElementById('tripLoginStatus').textContent=err.message || '로그인하지 못했습니다.';});
     });
     document.getElementById('tripEditBtn').addEventListener('click',function(){
+      showLoading('편집 모드를 준비하고 있어요...');
       editorSession().then(function(ok){
-        if(!ok){openLogin(activeCode);return;}
-        if(!navigator.onLine){alert('편집 모드는 온라인에서만 시작할 수 있습니다.');return;}
-        startLock().catch(function(err){alert(err.message || '편집 모드를 시작하지 못했습니다.');});
+        if(!ok){hideLoading();openLogin(activeCode);return;}
+        if(!navigator.onLine){hideLoading();alert('편집 모드는 온라인에서만 시작할 수 있습니다.');return;}
+        return startLock().then(function(){hideLoading();});
+      }).catch(function(err){
+        hideLoading();
+        if(isEditLockBusy(err)){
+          showNotice('잠시만 기다려 주세요','다른 사람이 이 여행을 편집하고 있어요.\n편집이 끝나면 다시 시도해 주세요.','✎');
+          return;
+        }
+        alert(err.message || '편집 모드를 시작하지 못했습니다.');
       });
     });
     document.getElementById('tripEditSaveBtn').addEventListener('click',saveEditing);
     document.getElementById('tripEditCancelBtn').addEventListener('click',function(){
-      if(dirty && !window.confirm('편집 내용을 취소할까요?')) return;
+      if(dirty){
+        askConfirm('편집을 취소할까요?', '저장하지 않은 변경 내용은 사라져요.', cancelEditing, '편집 취소', true);
+        return;
+      }
       cancelEditing();
     });
     main.addEventListener('click', onPanelClick);
