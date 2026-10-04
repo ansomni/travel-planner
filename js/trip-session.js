@@ -15,6 +15,8 @@
   var dirty = false;
   var editBaseline = '';
   var editing = false;
+  var editingPackingId = null;
+  var newPackingItemId = null;
   var fns = null;
   var lockHeld = false;
   var lockTimer = null;
@@ -185,6 +187,252 @@
       return '<tr class="checklist-row" data-row="checklist" data-index="' + i + '" data-editable-row><td><div class="checklist-content"><input class="display-check" type="checkbox" tabindex="-1"' + (readChecks()[item.text] ? ' checked' : '') + '><span class="checklist-text">' + escapeHtml(item.text || '~를 입력해주세요') + '</span></div></td></tr>';
     }).join('');
   }
+  function personalPackingKey(){ return 'travelPacking_' + activeCode; }
+  function defaultPackingState(){
+    return {
+      selectedCategory: '필수',
+      categories: [
+        {name:'필수', items:[{id:'packing-required-1', text:'여권', checked:false},{id:'packing-required-2', text:'충전기', checked:false},{id:'packing-required-3', text:'세면도구', checked:true},{id:'packing-required-4', text:'상비약', checked:false}]},
+        {name:'의류', items:[{id:'packing-clothes-1', text:'편한 신발', checked:false},{id:'packing-clothes-2', text:'잠옷', checked:false},{id:'packing-clothes-3', text:'수영복', checked:false}]},
+        {name:'기타', items:[{id:'packing-misc-1', text:'카메라', checked:false},{id:'packing-misc-2', text:'보조배터리', checked:false},{id:'packing-misc-3', text:'간식', checked:false}]}
+      ]
+    };
+  }
+  function normalizePackingState(raw){
+    var base = defaultPackingState();
+    var safe = JSON.parse(JSON.stringify(base));
+    if(!raw || typeof raw !== 'object') return safe;
+    var categories = Array.isArray(raw.categories) ? raw.categories : safe.categories;
+    safe.categories = categories.map(function(category){
+      var name = String(category && category.name || '').trim() || '기타';
+      var items = Array.isArray(category && category.items) ? category.items : [];
+      return {
+        name: name,
+        items: items.map(function(item){
+          var text = String(item && item.text || '').trim();
+          return {
+            id: String(item && item.id || 'packing-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
+            text: text || '새 준비물',
+            checked: !!(item && item.checked)
+          };
+        }).filter(function(item){ return !!item.text; })
+      };
+    }).filter(function(category){ return category.items.length || category.name; });
+    if(!safe.categories.length) safe.categories = base.categories;
+    var selected = String(raw.selectedCategory || '').trim();
+    var selectedExists = safe.categories.some(function(category){ return category.name === selected; });
+    safe.selectedCategory = selectedExists ? selected : safe.categories[0].name;
+    return safe;
+  }
+  function readPackingState(){
+    if(!activeCode) return defaultPackingState();
+    try{
+      var raw = localStorage.getItem(personalPackingKey());
+      return raw ? normalizePackingState(JSON.parse(raw)) : defaultPackingState();
+    }catch(e){ return defaultPackingState(); }
+  }
+  function writePackingState(state){
+    try{
+      localStorage.setItem(personalPackingKey(), JSON.stringify(normalizePackingState(state)));
+    }catch(e){}
+  }
+  function getPackingCategoryByName(state, name){
+    var categories = (state && state.categories) || [];
+    return categories.filter(function(category){ return category && category.name === name; })[0] || categories[0];
+  }
+  function packingSectionMarkup(){
+    var state = readPackingState();
+    var selected = state.selectedCategory || state.categories[0].name;
+    var selectedCategory = getPackingCategoryByName(state, selected) || state.categories[0];
+    var categoryButtons = state.categories.map(function(category){
+      var active = category.name === selected ? ' active' : '';
+      var deleteBtn = category.name === selected && state.categories.length > 1 ? '<button type="button" class="packing-pill-delete" data-packing-delete-category="' + escapeHtml(category.name) + '" aria-label="카테고리 삭제">×</button>' : '';
+      return '<span class="packing-pill-wrap' + active + '"><button type="button" class="packing-pill' + active + '" data-packing-category="' + escapeHtml(category.name) + '">' + escapeHtml(category.name) + '</button>' + deleteBtn + '</span>';
+    }).join('');
+    var itemCards = (selectedCategory.items || []).map(function(item){
+      var checkedClass = item.checked ? ' checked' : '';
+      var rawText = String(item.text || '');
+      var isPlaceholderText = rawText.trim() === '새 준비물';
+      var emptyClass = !rawText.trim() || isPlaceholderText ? ' empty' : '';
+      var inputValue = isPlaceholderText ? '' : rawText;
+      var content = item.id === editingPackingId ? '<input type="text" class="packing-inline-input" maxlength="50" value="' + escapeHtml(inputValue) + '" placeholder="새 준비물" aria-label="준비물 이름 수정">' : '<span class="packing-text">' + escapeHtml(rawText || '새 준비물') + '</span>';
+      return '<div class="packing-card' + checkedClass + emptyClass + '" data-packing-item-id="' + escapeHtml(item.id || '') + '"><span class="packing-check"><input type="checkbox" data-packing-toggle="' + escapeHtml(item.id || '') + '" ' + (item.checked ? 'checked' : '') + '></span>' + content + '<button type="button" class="packing-item-delete" data-packing-delete-item="' + escapeHtml(item.id || '') + '" aria-label="준비물 삭제">×</button></div>';
+    }).join('');
+    if(!itemCards) itemCards = '<div class="packing-empty">준비물을 추가해주세요.</div>';
+    return '<div class="personal-packing"><div class="personal-packing-header"><h2>개인 준비물</h2><button type="button" class="personal-packing-add" data-packing-add-item aria-label="새 준비물 추가">＋</button></div><div class="packing-pill-row">' + categoryButtons + '<button type="button" class="packing-category-add" data-packing-add-category aria-label="새 카테고리 추가">＋</button></div><div class="packing-cards">' + itemCards + '</div></div>';
+  }
+  function ensurePackingEditorModal(){
+    var modal = document.getElementById('packingEditorModal');
+    if(modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'packingEditorModal';
+    modal.className = 'modal';
+    modal.innerHTML = '<div class="modal-content packing-modal-content"><div class="modal-header"><h2 id="packingEditorTitle">준비물 수정</h2><button class="modal-close" type="button" data-packing-editor-close aria-label="닫기">✕</button></div><div class="modal-body"><label class="packing-form-field">분류<select id="packingEditorCategory"></select></label><label class="packing-form-field">항목<input id="packingEditorInput" type="text" maxlength="50" placeholder="예: 여권"></label><div class="editor-form-actions"><button type="button" class="btn" data-packing-editor-cancel>취소</button><button type="button" class="btn primary" data-packing-editor-save>확인</button></div></div></div>';
+    document.body.appendChild(modal);
+    modal.querySelector('[data-packing-editor-close]').addEventListener('click', function(){ modal.classList.remove('active'); });
+    modal.querySelector('[data-packing-editor-cancel]').addEventListener('click', function(){ modal.classList.remove('active'); });
+    modal.querySelector('[data-packing-editor-save]').addEventListener('click', function(){
+      var state = readPackingState();
+      var selectedCategory = document.getElementById('packingEditorCategory').value;
+      var text = document.getElementById('packingEditorInput').value.trim();
+      var itemId = modal.dataset.itemId;
+      var targetCategory = getPackingCategoryByName(state, selectedCategory);
+      if(!targetCategory) return;
+      if(!text){
+        toast('준비물 이름을 입력해 주세요.');
+        return;
+      }
+      if(itemId && modal.dataset.mode === 'edit'){
+        var found = null;
+        state.categories.forEach(function(category){
+          if(!found){
+            category.items.forEach(function(item){ if(item.id === itemId) found = {category:category, item:item}; });
+          }
+        });
+        if(found){
+          found.item.text = text;
+          if(found.category.name !== selectedCategory){
+            found.category.items = found.category.items.filter(function(item){ return item.id !== itemId; });
+            targetCategory.items.push({id:itemId, text:text, checked:found.item.checked});
+          }
+        }
+      }else{
+        targetCategory.items.push({id:'packing-' + Date.now() + '-' + Math.random().toString(16).slice(2), text:text, checked:false});
+      }
+      state.selectedCategory = selectedCategory;
+      writePackingState(state);
+      modal.classList.remove('active');
+      renderPanels();
+      showPanel(activePanelId());
+    });
+    return modal;
+  }
+  function ensurePackingCategoryModal(){
+    var modal = document.getElementById('packingCategoryModal');
+    if(modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'packingCategoryModal';
+    modal.className = 'modal';
+    modal.innerHTML = '<div class="modal-content packing-modal-content"><div class="modal-header"><h2>새 카테고리</h2><button class="modal-close" type="button" data-packing-category-close aria-label="닫기">✕</button></div><div class="modal-body"><label class="packing-form-field">카테고리 이름<input id="packingCategoryInput" type="text" maxlength="20" placeholder="예: 여행용품"></label><div class="editor-form-actions"><button type="button" class="btn" data-packing-category-cancel>취소</button><button type="button" class="btn primary" data-packing-category-save>추가</button></div></div></div>';
+    document.body.appendChild(modal);
+    modal.querySelector('[data-packing-category-close]').addEventListener('click', function(){ modal.classList.remove('active'); });
+    modal.querySelector('[data-packing-category-cancel]').addEventListener('click', function(){ modal.classList.remove('active'); });
+    modal.querySelector('[data-packing-category-save]').addEventListener('click', function(){
+      var text = document.getElementById('packingCategoryInput').value.trim();
+      if(!text){ toast('카테고리 이름을 입력해 주세요.'); return; }
+      var state = readPackingState();
+      if(state.categories.some(function(category){ return category.name === text; })){ toast('이미 있는 카테고리예요.'); return; }
+      state.categories.push({name:text, items:[]});
+      state.selectedCategory = text;
+      writePackingState(state);
+      modal.classList.remove('active');
+      renderPanels();
+      showPanel(activePanelId());
+    });
+    return modal;
+  }
+  function findPackingItemInState(state, itemId){
+    if(!state || !state.categories) return null;
+    for(var i = 0; i < state.categories.length; i++){
+      var items = state.categories[i].items || [];
+      for(var j = 0; j < items.length; j++){
+        if(String(items[j].id) === String(itemId)) return items[j];
+      }
+    }
+    return null;
+  }
+  function findPackingItemById(itemId){
+    return findPackingItemInState(readPackingState(), itemId);
+  }
+  function cancelPackingInlineEdit(){
+    if(editingPackingId && newPackingItemId === editingPackingId){
+      var state = readPackingState();
+      state.categories = (state.categories || []).map(function(category){
+        if(!category || !Array.isArray(category.items)) return category;
+        category.items = category.items.filter(function(item){ return item && item.id !== editingPackingId; });
+        return category;
+      });
+      writePackingState(state);
+      newPackingItemId = null;
+    }
+    editingPackingId = null;
+    renderPanels();
+    showPanel(activePanelId());
+  }
+  function commitPackingItemEdit(itemId, nextValue){
+    if(editingPackingId !== itemId) return false;
+    editingPackingId = null;
+    var state = readPackingState();
+    var item = findPackingItemInState(state, itemId);
+    if(!item) return false;
+    item.text = String(nextValue || '').trim() || '새 준비물';
+    writePackingState(state);
+    if(newPackingItemId === itemId) newPackingItemId = null;
+    renderPanels();
+    showPanel(activePanelId());
+    return true;
+  }
+  function finishPackingInlineEdit(card, itemId){
+    if(!card || !itemId) return false;
+    var input = card.querySelector('.packing-inline-input');
+    if(!input) return false;
+    return commitPackingItemEdit(itemId, input.value);
+  }
+  function savePackingInlineEditIfNeeded(target){
+    var activeInput = document.querySelector('.packing-inline-input');
+    if(!activeInput) return false;
+    if(target && target.closest && target.closest('.packing-inline-input')) return false;
+    var card = activeInput.closest('.packing-card');
+    if(!card) return false;
+    return finishPackingInlineEdit(card, card.dataset.packingItemId);
+  }
+  function startPackingInlineEdit(itemId){
+    editingPackingId = itemId;
+    renderPanels();
+    showPanel(activePanelId());
+    setTimeout(function(){
+      var input = document.querySelector('.packing-inline-input');
+      if(!input) return;
+      input.focus();
+      if(input.value && input.value !== '새 준비물'){
+        input.select();
+      }else{
+        try{ input.setSelectionRange(0, 0); }catch(e){}
+      }
+    }, 0);
+  }
+  function openPackingItemEditor(itemId){
+    var modal = ensurePackingEditorModal();
+    var state = readPackingState();
+    var item = findPackingItemById(itemId);
+    var category = item ? state.categories.find(function(categoryEntry){ return (categoryEntry.items || []).some(function(entry){ return entry.id === itemId; }); }) : getPackingCategoryByName(state, state.selectedCategory || '필수');
+    var select = document.getElementById('packingEditorCategory');
+    select.innerHTML = state.categories.map(function(categoryEntry){
+      return '<option value="' + escapeHtml(categoryEntry.name) + '"' + (categoryEntry.name === (category && category.name) ? ' selected' : '') + '>' + escapeHtml(categoryEntry.name) + '</option>';
+    }).join('');
+    modal.dataset.itemId = itemId || '';
+    modal.dataset.mode = item ? 'edit' : 'new';
+    document.getElementById('packingEditorTitle').textContent = item ? '준비물 수정' : '준비물 추가';
+    document.getElementById('packingEditorInput').value = item ? item.text : '';
+    modal.classList.add('active');
+    setTimeout(function(){ document.getElementById('packingEditorInput').focus(); document.getElementById('packingEditorInput').select(); }, 0);
+  }
+  function openPackingCategoryCreator(){
+    var modal = ensurePackingCategoryModal();
+    document.getElementById('packingCategoryInput').value = '';
+    modal.classList.add('active');
+    setTimeout(function(){ document.getElementById('packingCategoryInput').focus(); }, 0);
+  }
+  function addPackingItem(){
+    var state = readPackingState();
+    var category = getPackingCategoryByName(state, state.selectedCategory || '필수');
+    if(!category) return;
+    var item = {id:'packing-' + Date.now() + '-' + Math.random().toString(16).slice(2), text:'새 준비물', checked:false};
+    category.items.push(item);
+    writePackingState(state);
+    newPackingItemId = item.id;
+    startPackingInlineEdit(item.id);
+  }
   function reservationMarkup(category, label, icon){
     var list = content.reservations[category] || [];
     return '<div class="wrap ticket-card" data-reservation="' + category + '" data-index="0"><div style="font-size:20px; margin-bottom:4px;">' + icon + '</div><div style="font-weight:600; font-size:13px; color:var(--ink);">' + escapeHtml(label) + '</div></div>';
@@ -224,7 +472,7 @@
   function renderPanels(){
     updateHeader();
     makeNav();
-    var pre = '<section class="panel trip-panel" id="trip-panel-pre" role="tabpanel"><h2>예약 정보</h2><div class="legacy-reservation-grid">' + reservationMarkup('tickets','티켓','🎫') + reservationMarkup('hotels','호텔','🏨') + reservationMarkup('transport','교통','🚕') + '</div><h2 style="margin-top:20px;">체크 리스트</h2><div class="wrap"><table><tr><th>준비할 것</th></tr>' + checklistMarkup(content.preTrip.checklist || []) + (editing ? '<tr><td class="add-td"><button type="button" class="legacy-add-row" data-add-checklist>+ 체크 항목 추가</button></td></tr>' : '') + '</table></div>' + linkMarkup(content.links, 'pre') + (content.preTrip.note ? '<p class="note trip-note' + (editing ? ' note-empty' : '') + '" data-note="pre">' + escapeHtml(content.preTrip.note) + '</p>' : (editing ? '<p class="note trip-note note-empty is-empty" data-note="pre">여행 안내 메모를 입력하세요.</p>' : '')) + '</section>';
+    var pre = '<section class="panel trip-panel" id="trip-panel-pre" role="tabpanel"><h2>예약 정보</h2><div class="legacy-reservation-grid">' + reservationMarkup('tickets','티켓','🎫') + reservationMarkup('hotels','호텔','🏨') + reservationMarkup('transport','교통','🚕') + '</div><h2 style="margin-top:20px;">체크 리스트</h2><div class="wrap"><table><tr><th>준비할 것</th></tr>' + checklistMarkup(content.preTrip.checklist || []) + (editing ? '<tr><td class="add-td"><button type="button" class="legacy-add-row" data-add-checklist>+ 체크 항목 추가</button></td></tr>' : '') + '</table></div>' + packingSectionMarkup() + linkMarkup(content.links, 'pre') + (content.preTrip.note ? '<p class="note trip-note' + (editing ? ' note-empty' : '') + '" data-note="pre">' + escapeHtml(content.preTrip.note) + '</p>' : (editing ? '<p class="note trip-note note-empty is-empty" data-note="pre">여행 안내 메모를 입력하세요.</p>' : '')) + '</section>';
     var days = content.days.map(function(day, dayIndex){
       var rows = (day.items || []).map(function(item, i){ return {item:item, i:i}; }).sort(function(a,b){ return timeMinutes(a.item.time) - timeMinutes(b.item.time) || a.i - b.i; }).map(function(entry){
         var item = entry.item, i = entry.i, undecided = timeMinutes(item.time) === Infinity;
@@ -517,6 +765,7 @@
     finishRowSwipe(event.changedTouches[0].clientX, event.changedTouches[0].clientY);
   }
   function onPanelClick(event){
+    savePackingInlineEditIfNeeded(event.target);
     var checkRow = event.target.closest('[data-row="checklist"]');
     if(checkRow && !editing){
       var box = checkRow.querySelector('.display-check');
@@ -538,6 +787,73 @@
         var day = content.days[Number(row.dataset.day)]; var entry = day.items[index];
         openEditor('일정 수정',[{name:'time',label:'시간',value:entry.time,mask:'time',placeholder:''},{name:'text',label:'일정 *',value:entry.text},{name:'cost',label:'비고',value:entry.cost}],function(values){if(values.time&&!validTime(values.time)){toast('시간은 16:20 형식으로 입력해 주세요.');return false;}if(!values.text.trim()){toast('일정을 입력해 주세요.');return false;}entry.time=values.time;entry.text=values.text;entry.cost=values.cost;setDirty();renderPanels();showPanel(activePanelId());});
       }
+      return;
+    }
+    var packingToggle = event.target.closest('[data-packing-toggle]');
+    if(packingToggle){
+      savePackingInlineEditIfNeeded(event.target);
+      var state = readPackingState();
+      var itemId = packingToggle.dataset.packingToggle;
+      var category = getPackingCategoryByName(state, state.selectedCategory || '필수');
+      var target = null;
+      (category.items || []).forEach(function(item){ if(item.id === itemId) target = item; });
+      if(target){ target.checked = packingToggle.checked; }
+      writePackingState(state);
+      renderPanels();
+      showPanel(activePanelId());
+      return;
+    }
+    var packingDelete = event.target.closest('[data-packing-delete-item]');
+    if(packingDelete){
+      savePackingInlineEditIfNeeded(event.target);
+      var deleteState = readPackingState();
+      var deleteCategory = getPackingCategoryByName(deleteState, deleteState.selectedCategory || '필수');
+      deleteCategory.items = (deleteCategory.items || []).filter(function(item){ return String(item.id) !== String(packingDelete.dataset.packingDeleteItem); });
+      writePackingState(deleteState);
+      renderPanels();
+      showPanel(activePanelId());
+      return;
+    }
+    var packingDeleteCategory = event.target.closest('[data-packing-delete-category]');
+    if(packingDeleteCategory){
+      savePackingInlineEditIfNeeded(event.target);
+      var deleteName = packingDeleteCategory.dataset.packingDeleteCategory;
+      var deleteState = readPackingState();
+      if((deleteState.categories || []).length <= 1){ return; }
+      askConfirm('카테고리를 삭제할까요?', '이 카테고리의 모든 준비물도 함께 삭제돼요.', function(){
+        var state = readPackingState();
+        state.categories = (state.categories || []).filter(function(category){ return category.name !== deleteName; });
+        if(!state.categories.length){ state.categories = [{name:'필수', items:[]}]; }
+        state.selectedCategory = state.categories[0].name;
+        writePackingState(state);
+        renderPanels();
+        showPanel(activePanelId());
+      });
+      return;
+    }
+    var packingCategoryButton = event.target.closest('[data-packing-category]');
+    if(packingCategoryButton){
+      savePackingInlineEditIfNeeded(event.target);
+      var state = readPackingState();
+      state.selectedCategory = packingCategoryButton.dataset.packingCategory;
+      writePackingState(state);
+      renderPanels();
+      showPanel(activePanelId());
+      return;
+    }
+    var packingAddItem = event.target.closest('[data-packing-add-item]');
+    if(packingAddItem){
+      addPackingItem();
+      return;
+    }
+    var packingAddCategory = event.target.closest('[data-packing-add-category]');
+    if(packingAddCategory){
+      openPackingCategoryCreator();
+      return;
+    }
+    var packingItemCard = event.target.closest('[data-packing-item-id]');
+    if(packingItemCard && !event.target.closest('[data-packing-toggle]') && !event.target.closest('[data-packing-delete-item]') && !event.target.closest('.packing-inline-input')){
+      startPackingInlineEdit(packingItemCard.dataset.packingItemId);
       return;
     }
     var addCheck = event.target.closest('[data-add-checklist]');
@@ -1075,6 +1391,21 @@
         return;
       }
       cancelEditing();
+    });
+    document.addEventListener('keydown', function(event){
+      var input = event.target && event.target.closest ? event.target.closest('.packing-inline-input') : null;
+      if(!input) return;
+      if(event.isComposing || event.keyCode === 229) return;
+      var itemId = input.closest('[data-packing-item-id]') && input.closest('[data-packing-item-id]').dataset.packingItemId;
+      if(event.key === 'Enter'){
+        event.preventDefault();
+        commitPackingItemEdit(itemId, input.value);
+        return;
+      }
+      if(event.key === 'Escape'){
+        event.preventDefault();
+        cancelPackingInlineEdit();
+      }
     });
     main.addEventListener('click', onPanelClick);
     document.querySelector('.app-header-title').addEventListener('click',function(){ if(editing) editTripInfo(); });
