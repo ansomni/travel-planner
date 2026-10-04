@@ -667,6 +667,110 @@ function bindRowDeleteGesture(row, idx){
   row.addEventListener('mouseleave', endMouseSwipe);
 }
 
+function ensureExpenseEditModal(){
+  var modal = document.getElementById('expenseEditModal');
+  if(modal) return modal;
+
+  modal = document.createElement('div');
+  modal.id = 'expenseEditModal';
+  modal.className = 'modal';
+  modal.setAttribute('aria-hidden', 'true');
+  modal.innerHTML = '<div class="modal-content" style="max-width:420px;">' +
+    '<div class="modal-header"><h2>정산 항목 수정</h2><button class="modal-close" type="button" data-expense-edit-close aria-label="닫기">✕</button></div>' +
+    '<div class="modal-body" style="display:grid;gap:12px;">' +
+      '<label style="display:grid;gap:5px;font-size:12px;color:var(--mute);">결제자<select id="expenseEditPayerInput" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit"></select></label>' +
+      '<label style="display:grid;gap:5px;font-size:12px;color:var(--mute);">항목<input id="expenseEditItemInput" type="text" maxlength="50" placeholder="예: 숙소비" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit"></label>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+        '<label style="display:grid;gap:5px;font-size:12px;color:var(--mute);">통화<select id="expenseEditCurrencyInput" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit"></select></label>' +
+        '<label style="display:grid;gap:5px;font-size:12px;color:var(--mute);">금액<input id="expenseEditAmountInput" type="number" min="0" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit"></label>' +
+      '</div>' +
+      '<div class="expense-edit-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">' +
+        '<button class="btn" type="button" data-expense-edit-cancel>취소</button>' +
+        '<button class="btn primary" type="button" data-expense-edit-save>저장</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target === modal){ modal.classList.remove('active'); modal.setAttribute('aria-hidden', 'true'); } });
+  modal.querySelector('[data-expense-edit-close]').addEventListener('click', function(){ modal.classList.remove('active'); modal.setAttribute('aria-hidden', 'true'); });
+  modal.querySelector('[data-expense-edit-cancel]').addEventListener('click', function(){ modal.classList.remove('active'); modal.setAttribute('aria-hidden', 'true'); });
+  modal.querySelector('[data-expense-edit-save]').addEventListener('click', function(){
+    var idx = parseInt(modal.dataset.expenseIndex || '-1', 10);
+    if(idx < 0 || !state.expenses[idx]) return;
+    var payer = byId('expenseEditPayerInput').value.trim();
+    var item = byId('expenseEditItemInput').value.trim();
+    var currency = normCurrency(byId('expenseEditCurrencyInput').value);
+    var amount = asNumber(byId('expenseEditAmountInput').value);
+    if(!payer || !item || amount <= 0){
+      showAppToast('항목과 금액을 확인해 주세요.');
+      byId('expenseEditItemInput').focus();
+      return;
+    }
+    state.expenses[idx].payer = payer;
+    state.expenses[idx].item = item;
+    state.expenses[idx].currency = currency;
+    state.expenses[idx].amount = amount;
+    if(typeof state.expenses[idx].included === 'undefined') state.expenses[idx].included = true;
+    saveWithPending(idx);
+    renderAll();
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    showAppToast('정산 항목을 수정했어요.');
+  });
+  return modal;
+}
+
+function openExpenseEditModal(idx){
+  if(!canEditOnline()) return;
+  var exp = state.expenses[idx];
+  if(!exp) return;
+  var modal = ensureExpenseEditModal();
+  var participants = getParticipants();
+  var payerSelect = byId('expenseEditPayerInput');
+  var currencySelect = byId('expenseEditCurrencyInput');
+  var itemInput = byId('expenseEditItemInput');
+  var amountInput = byId('expenseEditAmountInput');
+  modal.dataset.expenseIndex = String(idx);
+
+  payerSelect.innerHTML = '';
+  participants.forEach(function(name){
+    var option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    if(name === exp.payer) option.selected = true;
+    payerSelect.appendChild(option);
+  });
+  if(participants.length >= 2){
+    var commonOption = document.createElement('option');
+    commonOption.value = COMMON_PAYER_VALUE;
+    commonOption.textContent = '공동';
+    if(isCommonPayer(exp.payer)) commonOption.selected = true;
+    payerSelect.appendChild(commonOption);
+  }
+
+  var currencies = ['KRW'].concat((state.currencies || []).map(function(c){ return c.code; }));
+  var seen = {};
+  currencySelect.innerHTML = '';
+  currencies.forEach(function(code){
+    code = normCurrency(code);
+    if(!code || seen[code]) return;
+    seen[code] = true;
+    var option = document.createElement('option');
+    option.value = code;
+    option.textContent = code;
+    if(code === normCurrency(exp.currency)) option.selected = true;
+    currencySelect.appendChild(option);
+  });
+
+  itemInput.value = String(exp.item || '');
+  amountInput.value = asNumber(exp.amount);
+  if(!payerSelect.value && isCommonPayer(exp.payer)) payerSelect.value = COMMON_PAYER_VALUE;
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+  setTimeout(function(){ itemInput.focus(); itemInput.select(); }, 30);
+}
+
 function renderTable(){
   var body = byId('expenseTable').querySelector('tbody');
   var showKrwOnly = !!uiState.showKrwOnly;
@@ -678,6 +782,7 @@ function renderTable(){
   state.expenses.forEach(function(exp, idx){
     var included = typeof exp.included === 'undefined' ? true : !!exp.included;
     var tr = document.createElement('tr');
+    tr.dataset.expenseRow = String(idx);
     if(exp._pendingSync) tr.className = 'expense-pending';
     var krwText = fmtKrw(expenseToKrw(exp));
     var amountText = showKrwOnly ? krwText : fmtMoney(normCurrency(exp.currency), asNumber(exp.amount));
@@ -687,6 +792,13 @@ function renderTable(){
       '<td>' + escapeHtml(exp.item) + '</td>' +
       '<td class="' + amountClass + '">' + amountText + amountDetail + '</td>' +
       '<td class="include-cell"><input type="checkbox" data-inc="' + idx + '"' + (included ? ' checked' : '') + (canEditOnline() ? '' : ' disabled') + '></td>';
+    if(canEditOnline()){
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', function(e){
+        if(e.target.closest && (e.target.closest('input,button,select,label'))) return;
+        openExpenseEditModal(idx);
+      });
+    }
     body.appendChild(tr);
     bindRowDeleteGesture(tr, idx);
   });
