@@ -513,6 +513,19 @@ function load(){
   }catch(e){}
 }
 
+var COMMON_PAYER_VALUE = '__COMMON__';
+var COMMON_PAYER_LABEL = '공동';
+
+function isCommonPayer(payer){
+  var value = String(payer || '').trim();
+  return value === COMMON_PAYER_VALUE || value === COMMON_PAYER_LABEL || value === '공통' || value === '공동 경비';
+}
+
+function formatPayerLabel(payer){
+  var value = String(payer || '').trim();
+  return isCommonPayer(payer) ? COMMON_PAYER_LABEL : value;
+}
+
 function getParticipants(){
   var names = (state.participants || []).map(function(v){ return String(v).trim(); }).filter(Boolean);
   var seen = {};
@@ -670,7 +683,7 @@ function renderTable(){
     var amountText = showKrwOnly ? krwText : fmtMoney(normCurrency(exp.currency), asNumber(exp.amount));
     var amountClass = showKrwOnly ? 'amount-cell krw-only' : 'amount-cell';
     var amountDetail = '';
-    tr.innerHTML = '<td class="payer-cell">' + escapeHtml(exp.payer) + '</td>' +
+    tr.innerHTML = '<td class="payer-cell">' + escapeHtml(formatPayerLabel(exp.payer)) + '</td>' +
       '<td>' + escapeHtml(exp.item) + '</td>' +
       '<td class="' + amountClass + '">' + amountText + amountDetail + '</td>' +
       '<td class="include-cell"><input type="checkbox" data-inc="' + idx + '"' + (included ? ' checked' : '') + (canEditOnline() ? '' : ' disabled') + '></td>';
@@ -738,8 +751,16 @@ function renderPayerOptions(){
     opt.textContent = name;
     select.appendChild(opt);
   });
-  if(current && participants.indexOf(current) !== -1){
+  if(participants.length >= 2){
+    var commonOpt = document.createElement('option');
+    commonOpt.value = COMMON_PAYER_VALUE;
+    commonOpt.textContent = '공동';
+    select.appendChild(commonOpt);
+  }
+  if(current === COMMON_PAYER_VALUE || (current && participants.indexOf(current) !== -1)){
     select.value = current;
+  } else if(participants.length){
+    select.value = participants[0];
   }
 }
 
@@ -757,6 +778,17 @@ function renderSettlement(){
     var payer = (exp.payer || '').trim();
     var krw = expenseToKrw(exp);
     total += krw;
+
+    if(isCommonPayer(payer)){
+      if(!participants.length) return;
+      var share = krw / participants.length;
+      participants.forEach(function(name){
+        if(!paid[name]) paid[name] = 0;
+        paid[name] += share;
+      });
+      return;
+    }
+
     if(!paid[payer]) paid[payer] = 0;
     paid[payer] += krw;
     if(payer && participants.indexOf(payer) === -1) participants.push(payer);

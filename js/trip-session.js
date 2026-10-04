@@ -394,8 +394,9 @@
       var input = document.querySelector('.packing-inline-input');
       if(!input) return;
       input.focus();
-      if(input.value && input.value !== '새 준비물'){
-        input.select();
+      var value = input.value || '';
+      if(value && value !== '새 준비물'){
+        try{ var pos = value.length; input.setSelectionRange(pos, pos); }catch(e){ input.select(); }
       }else{
         try{ input.setSelectionRange(0, 0); }catch(e){}
       }
@@ -853,6 +854,7 @@
     }
     var packingItemCard = event.target.closest('[data-packing-item-id]');
     if(packingItemCard && !event.target.closest('[data-packing-toggle]') && !event.target.closest('[data-packing-delete-item]') && !event.target.closest('.packing-inline-input')){
+      event.preventDefault();
       startPackingInlineEdit(packingItemCard.dataset.packingItemId);
       return;
     }
