@@ -70,8 +70,7 @@ function freshContent(startDate, endDate) {
   const end = new Date(`${endDate}T12:00:00.000Z`);
   const days = [];
   const checklist = [
-    '여권·신분증 챙기기', '유심·eSIM·로밍 확인',
-    '충전기와 보조배터리 챙기기', '여행자 보험 확인'
+    '유심·eSIM·로밍 확인', '여행자 보험 가입'
   ].map((text, index) => ({ id: `check-${index + 1}`, text, checked: false }));
   for (let date = new Date(start), index = 0; date <= end && index < 31; date.setUTCDate(date.getUTCDate() + 1), index += 1) {
     days.push({ id: `day-${index + 1}`, order: index + 1, date: date.toISOString().slice(0, 10), title: `${index + 1}일차 일정`, items: [], note: '' });
