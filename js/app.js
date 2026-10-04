@@ -70,6 +70,14 @@ var firebaseConfig = {
 };
 
 function byId(id){ return document.getElementById(id); }
+function showAppToast(message){
+  var el = document.getElementById('tripToast') || document.createElement('div');
+  if(!el.id){ el.id = 'tripToast'; el.className = 'edit-toast'; el.setAttribute('role','status'); document.body.appendChild(el); }
+  el.textContent = message;
+  el.classList.add('active');
+  clearTimeout(showAppToast.timer);
+  showAppToast.timer = setTimeout(function(){ el.classList.remove('active'); }, 1800);
+}
 function escapeHtml(value){
   return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});
 }
@@ -563,7 +571,9 @@ function bindRowDeleteGesture(row, idx){
   row.addEventListener('contextmenu', function(e){
     if(e.target.closest && e.target.closest('input,button,select,label')) return;
     e.preventDefault();
-    if(confirm('삭제하시겠습니까?')){
+    if(window.askConfirm){
+      window.askConfirm('정산 항목을 삭제할까요?', '삭제 후에는 되돌릴 수 없습니다.', function(){ deleteExpense(idx); }, '삭제');
+    } else if(window.confirm('삭제하시겠습니까?')){
       deleteExpense(idx);
     }
   });
@@ -592,7 +602,9 @@ function bindRowDeleteGesture(row, idx){
     if(deltaX <= -70){
       row.style.transform = '';
       row.classList.remove('swipe-armed');
-      if(confirm('삭제하시겠습니까?')){
+      if(window.askConfirm){
+        window.askConfirm('정산 항목을 삭제할까요?', '삭제 후에는 되돌릴 수 없습니다.', function(){ deleteExpense(idx); }, '삭제');
+      } else if(confirm('삭제하시겠습니까?')){
         deleteExpense(idx);
       }
       return;
@@ -627,7 +639,9 @@ function bindRowDeleteGesture(row, idx){
     if(deltaX <= -70){
       row.style.transform = '';
       row.classList.remove('swipe-armed');
-      if(confirm('삭제하시겠습니까?')){
+      if(window.askConfirm){
+        window.askConfirm('정산 항목을 삭제할까요?', '삭제 후에는 되돌릴 수 없습니다.', function(){ deleteExpense(idx); }, '삭제');
+      } else if(confirm('삭제하시겠습니까?')){
         deleteExpense(idx);
       }
       return;
@@ -1092,7 +1106,7 @@ function bind(){
     if(!canEditOnline()) return;
     var input = byId('participantInput');
     if(!addParticipant(input.value)){
-      alert('참여자 이름을 확인해 주세요. (빈 값/중복 불가)');
+      showAppToast('참여자 이름을 확인해 주세요.');
       return;
     }
     input.value = '';
@@ -1138,11 +1152,11 @@ function bind(){
     var currency = normCurrency(byId('currencyInput').value);
     var amount = asNumber(byId('amountInput').value);
     if(!payer || !item || amount <= 0){
-      alert('결제자, 항목, 금액을 입력해 주세요.');
+      showAppToast('결제 항목을 입력해 주세요.');
       return;
     }
     if(!currencyRate(currency)){
-      alert(currency + ' 환율이 설정되지 않았어요. 설정에서 환율을 입력해 주세요.');
+      showAppToast(currency + ' 환율이 설정되지 않았어요.');
       return;
     }
     state.expenses.push({id:createExpenseId(), payer:payer, item:item, currency:currency, amount:amount, included:true});

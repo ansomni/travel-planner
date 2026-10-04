@@ -42,7 +42,7 @@
 <header class="trip-code-header"><h1>새로운 여행을 시작해요</h1><p>여행 정보와 함께 사용할 코드를 설정해 주세요.</p></header>
 <div class="trip-form-card create-trip-card"><label>여행지<input id="newTripDestination" type="text" maxlength="80" placeholder="어디로 떠나나요?" required></label><div class="trip-date-fields"><label>시작일<input id="newTripStart" type="text" inputmode="numeric" maxlength="10" placeholder="YYYY/MM/DD" required></label><label>종료일<input id="newTripEnd" type="text" inputmode="numeric" maxlength="10" placeholder="YYYY/MM/DD" required></label></div><p id="newTripDateError" class="trip-field-error" hidden>날짜 정보를 확인해 주세요.</p><label>여행코드<input id="newTripCode" type="text" minlength="6" maxlength="6" autocomplete="off" placeholder="숫자와 알파벳 6자리" required></label><label>비밀번호<input id="newTripPin" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="숫자 4자리" required></label><button class="trip-code-search-button" type="submit">여행 만들기</button></div>
 </form>
-<button id="importLegacyTrip" type="button" hidden>현재 백두산 일정 가져오기</button><button id="deleteTripCache" type="button" hidden>이 기기의 여행 저장 데이터 삭제</button>
+<button id="deleteTripCache" type="button" hidden>이 기기의 여행 저장 데이터 삭제</button>
 <p id="tripGateStatus" class="trip-gate-status" role="status"></p>
 </div>
 </section>
@@ -73,7 +73,6 @@
 </header>
 <div class="content">
 <div class="wrap settle-box">
-<p id="remoteStatus" class="remote-status">공유 저장 준비 중...</p>
 <div id="pullRefreshIndicator" class="pull-indicator" aria-hidden="true"><span class="pull-icon">↻</span><span id="pullRefreshText">새로고침하기</span></div>
 <div id="pullContent" class="pull-content">
 
@@ -107,6 +106,8 @@
 <div class="settle-result" id="transferBox">
 <h3>송금 가이드</h3>
 <div id="transferContent">항목을 추가하면 누가 누구에게 보내야 하는지 표시됩니다.</div>
+</div>
+</div>
 </div>
 </div>
 </div>
