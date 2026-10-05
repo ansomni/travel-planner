@@ -70,13 +70,32 @@ var firebaseConfig = {
 };
 
 function byId(id){ return document.getElementById(id); }
+function ensureToastHost(){
+  var el = byId('tripToast') || byId('editNoticeToast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'tripToast';
+    el.className = 'edit-toast';
+    el.setAttribute('role','status');
+    document.body.appendChild(el);
+    return el;
+  }
+  if(el.parentElement && el.parentElement.id === 'tripApp'){
+    el.parentElement.removeChild(el);
+    document.body.appendChild(el);
+  }
+  if(!el.classList.contains('edit-toast')) el.className = 'edit-toast';
+  if(!el.id) el.id = 'tripToast';
+  el.setAttribute('aria-hidden', 'true');
+  return el;
+}
 function showAppToast(message){
-  var el = document.getElementById('tripToast') || document.createElement('div');
-  if(!el.id){ el.id = 'tripToast'; el.className = 'edit-toast'; el.setAttribute('role','status'); document.body.appendChild(el); }
+  var el = ensureToastHost();
   el.textContent = message;
   el.classList.add('active');
+  el.setAttribute('aria-hidden', 'false');
   clearTimeout(showAppToast.timer);
-  showAppToast.timer = setTimeout(function(){ el.classList.remove('active'); }, 1800);
+  showAppToast.timer = setTimeout(function(){ el.classList.remove('active'); el.setAttribute('aria-hidden', 'true'); }, 1800);
 }
 function escapeHtml(value){
   return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});
@@ -138,8 +157,7 @@ function setPullIndicator(text, distance, active){
 
 var editToastTimer = null;
 function showEditNotice(message){
-  var toast = byId('editNoticeToast');
-  if(!toast) return;
+  var toast = ensureToastHost();
   toast.textContent = message || '로그인 해주세요! 현재 변경은 이 기기에만 저장돼요.';
   toast.classList.add('active');
   toast.setAttribute('aria-hidden', 'false');
@@ -148,6 +166,12 @@ function showEditNotice(message){
     toast.classList.remove('active');
     toast.setAttribute('aria-hidden', 'true');
   }, 3200);
+}
+
+function requireLoginForEdit(){
+  if(canEditOnline()) return true;
+  showAppToast('로그인 후 편집할 수 있습니다.');
+  return false;
 }
 
 function clearPendingSync(){
@@ -722,7 +746,7 @@ function ensureExpenseEditModal(){
 }
 
 function openExpenseEditModal(idx){
-  if(!canEditOnline()) return;
+  if(!requireLoginForEdit()) return;
   var exp = state.expenses[idx];
   if(!exp) return;
   var modal = ensureExpenseEditModal();
@@ -791,14 +815,13 @@ function renderTable(){
     tr.innerHTML = '<td class="payer-cell">' + escapeHtml(formatPayerLabel(exp.payer)) + '</td>' +
       '<td>' + escapeHtml(exp.item) + '</td>' +
       '<td class="' + amountClass + '">' + amountText + amountDetail + '</td>' +
-      '<td class="include-cell"><input type="checkbox" data-inc="' + idx + '"' + (included ? ' checked' : '') + (canEditOnline() ? '' : ' disabled') + '></td>';
-    if(canEditOnline()){
-      tr.style.cursor = 'pointer';
-      tr.addEventListener('click', function(e){
-        if(e.target.closest && (e.target.closest('input,button,select,label'))) return;
-        openExpenseEditModal(idx);
-      });
-    }
+      '<td class="include-cell"><label class="include-toggle" aria-label="정산 포함 여부"><input type="checkbox" data-inc="' + idx + '"' + (included ? ' checked' : '') + (canEditOnline() ? '' : ' disabled') + '></label></td>';
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', function(e){
+      if(e.target.closest && (e.target.closest('input,button,select,label'))) return;
+      if(!requireLoginForEdit()) return;
+      openExpenseEditModal(idx);
+    });
     body.appendChild(tr);
     bindRowDeleteGesture(tr, idx);
   });
@@ -1084,6 +1107,7 @@ function bind(){
 
   if(openSettingsBtn){
     openSettingsBtn.addEventListener('click', function(){
+      if(!requireLoginForEdit()) return;
       renderAll();
       openModalEl(settingsModal);
     });
@@ -1131,7 +1155,7 @@ function bind(){
   }
   if(applyFxBtn){
     applyFxBtn.addEventListener('click', function(){
-      if(!canEditOnline()) return;
+      if(!requireLoginForEdit()) return;
       var code = normCurrency(byId('currencyCodeInput').value);
       var rate = asNumber(byId('currencyRateInput').value);
       if(code === 'KRW' || !rate){
@@ -1241,13 +1265,13 @@ function bind(){
   var toggleParticipantBtn = byId('toggleParticipantBtn');
   if(toggleParticipantBtn){
     toggleParticipantBtn.addEventListener('click', function(){
-      if(!canEditOnline()) return;
+      if(!requireLoginForEdit()) return;
       openModalEl(settingsModal);
     });
   }
 
   byId('addParticipantBtn').addEventListener('click', function(){
-    if(!canEditOnline()) return;
+    if(!requireLoginForEdit()) return;
     var input = byId('participantInput');
     if(!addParticipant(input.value)){
       showAppToast('참여자 이름을 확인해 주세요.');
@@ -1290,7 +1314,7 @@ function bind(){
   });
 
   byId('addExpenseBtn').addEventListener('click', function(){
-    if(!canEditOnline()) return;
+    if(!requireLoginForEdit()) return;
     var payer = byId('payerInput').value.trim();
     var item = byId('itemInput').value.trim();
     var currency = normCurrency(byId('currencyInput').value);

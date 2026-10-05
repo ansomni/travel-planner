@@ -112,8 +112,10 @@ details p{margin:6px 0 0;color:var(--mute)}
 #expenseTable th.c,#expenseTable td.c{width:70px}
 #expenseTable .payer-cell{width:35px;min-width:30px;white-space:nowrap;text-align:center}
 #expenseTable .amount-cell{text-align:right;width:70px;min-width:76px;white-space:nowrap;font-variant-numeric:tabular-nums}
-#expenseTable .include-cell{text-align:center;width:25px;min-width:20px;padding-left:4px;padding-right:4px}
-#expenseTable input[type="checkbox"]{width:14px;height:14px;accent-color:var(--accent)}
+#expenseTable .include-cell{text-align:center;width:34px;min-width:34px;max-width:34px;padding:0;box-sizing:border-box}
+#expenseTable .include-toggle{display:flex;align-items:center;justify-content:center;width:100%;min-height:30px;border-radius:8px;cursor:pointer}
+#expenseTable .include-toggle:active{background:rgba(25,123,164,.08)}
+#expenseTable input[type="checkbox"]{display:block;width:16px;height:16px;margin:0;accent-color:var(--accent);cursor:pointer}
 #expenseTable tr.swipe-row{touch-action:pan-y;transition:transform .16s ease}
 #expenseTable tr.swipe-armed td{background:var(--soft)}
 #expenseTable tr:last-child td{border-bottom:1px solid var(--line)}
