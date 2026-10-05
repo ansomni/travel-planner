@@ -184,7 +184,8 @@
   function checklistMarkup(items){
     if(!items.length) return '<tr><td class="empty-hint">체크리스트가 비어 있어요.</td></tr>';
     return items.map(function(item, i){
-      return '<tr class="checklist-row" data-row="checklist" data-index="' + i + '" data-editable-row><td><div class="checklist-content"><input class="display-check" type="checkbox" tabindex="-1"' + (readChecks()[item.text] ? ' checked' : '') + '><span class="checklist-text">' + escapeHtml(item.text || '~를 입력해주세요') + '</span></div></td></tr>';
+      var checked = !!readChecks()[item.text];
+      return '<tr class="checklist-row' + (checked ? ' checked' : '') + '" data-row="checklist" data-index="' + i + '" data-editable-row><td><div class="checklist-content"><input class="display-check" type="checkbox" tabindex="-1"' + (checked ? ' checked' : '') + '><span class="checklist-text">' + escapeHtml(item.text || '~를 입력해주세요') + '</span></div></td></tr>';
     }).join('');
   }
   function personalPackingKey(){ return 'travelPacking_' + activeCode; }
@@ -771,6 +772,7 @@
     if(checkRow && !editing){
       var box = checkRow.querySelector('.display-check');
       if(event.target !== box) box.checked = !box.checked;
+      checkRow.classList.toggle('checked', box.checked);
       var checkItem = content.preTrip.checklist[Number(checkRow.dataset.index)];
       var checks = readChecks();
       if(box.checked) checks[checkItem.text] = true; else delete checks[checkItem.text];
@@ -972,7 +974,8 @@
       var blockHtml = (form.blocks || []).map(function(block,index){
         var selectedInfo = block.kind === 'info' ? ' active' : '';
         var selectedMemo = block.kind === 'memo' ? ' active' : '';
-        return '<div class="reservation-block"><div class="reservation-block-header"><div class="reservation-block-kind"><button type="button" class="res-kind-btn' + selectedInfo + '" data-res-kind="info" data-res-block-index="' + index + '">일반</button><button type="button" class="res-kind-btn' + selectedMemo + '" data-res-kind="memo" data-res-block-index="' + index + '">중요</button></div><div class="reservation-block-tools"><button type="button" class="res-close-btn" data-res-remove-block="' + index + '" aria-label="블록 삭제">×</button></div></div><textarea data-res-block-text="' + index + '" placeholder="굵은 글씨는 **중요한 내용**의 형식으로 입력할 수 있습니다">' + escapeHtml(block.text || '') + '</textarea></div>';
+        var blockKindClass = block.kind === 'memo' ? 'important' : 'info';
+        return '<div class="reservation-block ' + blockKindClass + '"><div class="reservation-block-header"><div class="reservation-block-kind"><button type="button" class="res-kind-btn' + selectedInfo + '" data-res-kind="info" data-res-block-index="' + index + '">일반</button><button type="button" class="res-kind-btn' + selectedMemo + '" data-res-kind="memo" data-res-block-index="' + index + '">중요</button></div><div class="reservation-block-tools"><button type="button" class="res-close-btn" data-res-remove-block="' + index + '" aria-label="블록 삭제">×</button></div></div><textarea data-res-block-text="' + index + '" placeholder="굵은 글씨는 **중요한 내용**의 형식으로 입력할 수 있습니다">' + escapeHtml(block.text || '') + '</textarea></div>';
       }).join('');
       html = '<div class="reservation-form"><label>예약 항목 이름<input type="text" data-res-field="title" placeholder="예: 공연 티켓" value="' + escapeHtml(form.title) + '"></label><div class="reservation-field-header"><span>메모</span><button type="button" class="res-add-block-btn" data-res-add-block aria-label="새 블록 추가">＋</button></div><div class="reservation-block-list">' + blockHtml + '</div>' +
         '<div class="reservation-photos">' + form.images.map(function(image,i){ var src=validImageSrc(image); return '<figure class="reservation-photo">' + (src ? '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(image.name || '') + '">' : '<p class="empty-hint">' + escapeHtml(image.name || '이미지') + '</p>') + '<button type="button" class="btn mini-del" data-res-remove-image="' + i + '" aria-label="이미지 삭제">×</button></figure>'; }).join('') + '</div>' +
@@ -980,7 +983,9 @@
         '<div class="reservation-manage"><button type="button" class="res-add-btn" data-res-act="pick">이미지 업로드</button></div>' +
         '<div class="editor-form-actions"><button type="button" class="btn" data-res-act="form-cancel">취소</button><button type="button" class="btn primary" data-res-act="form-save"' + (form.busy ? ' disabled' : '') + '>' + (form.busy ? '저장 중...' : '확인') + '</button></div></div>';
     }else if(resState.mode === 'list'){
-      html = (list.length ? '<div class="reservation-rows">' + list.map(function(item,i){ return '<div class="reservation-row"><span class="reservation-row-name">' + escapeHtml(item.title || '~를 입력해주세요') + '</span><button type="button" class="res-text-btn" data-res-act="edit" data-i="' + i + '">수정</button><button type="button" class="res-text-btn" data-res-act="delete" data-i="' + i + '">삭제</button></div>'; }).join('') + '</div>' : '<p class="empty-hint">등록된 예약 항목이 없어요.</p>') + '<div class="res-actions"><button type="button" class="res-add-btn" data-res-act="add">+ 항목 추가</button><button type="button" class="res-apply-btn" data-res-act="apply">적용</button></div>';
+      html = (list.length ? '<div class="reservation-rows">' + list.map(function(item,i){
+        return '<div class="reservation-row" data-res-index="' + i + '"><div class="reservation-order-tools"><button type="button" class="res-drag-handle" data-res-drag-handle data-i="' + i + '" aria-label="순서 이동" title="드래그로 순서 변경"><span></span><span></span><span></span></button></div><span class="reservation-row-name">' + escapeHtml(item.title || '~를 입력해주세요') + '</span><button type="button" class="res-text-btn" data-res-act="edit" data-i="' + i + '">수정</button><button type="button" class="res-text-btn" data-res-act="delete" data-i="' + i + '">삭제</button></div>';
+      }).join('') + '</div>' : '<p class="empty-hint">등록된 예약 항목이 없어요.</p>') + '<div class="res-actions"><button type="button" class="res-add-btn" data-res-act="add">+ 항목 추가</button><button type="button" class="res-apply-btn" data-res-act="apply">적용</button></div>';
     }else{
       if(resState.index >= list.length) resState.index = Math.max(0, list.length - 1);
       var item = list[resState.index];
@@ -1075,6 +1080,15 @@
     else if(kind === 'apply'){ document.getElementById('reservationViewModal').classList.remove('active'); toast('예약 정보를 적용했어요.'); }
     else if(kind === 'edit') openReservationForm(i);
     else if(kind === 'pick') pickReservationFiles();
+    else if(kind === 'move-up' || kind === 'move-down'){
+      var moveIndex = i;
+      if(Number.isNaN(moveIndex)) return;
+      var nextIndex = moveIndex + (kind === 'move-up' ? -1 : 1);
+      if(nextIndex < 0 || nextIndex >= content.reservations[resState.category].length) return;
+      var moved = content.reservations[resState.category].splice(moveIndex, 1)[0];
+      content.reservations[resState.category].splice(nextIndex, 0, moved);
+      setDirty(); renderReservation(); renderPanels(); showPanel(activePanelId());
+    }
     else if(kind === 'form-cancel'){ resState.mode = 'list'; resState.form = null; renderReservation(); }
     else if(kind === 'form-save') saveReservationForm();
     else if(kind === 'delete'){
@@ -1084,6 +1098,57 @@
     }
   }
   var carouselDrag = null;
+  var reservationDrag = null;
+  function moveReservationItem(fromIndex, toIndex){
+    var list = content.reservations[resState.category];
+    if(!Array.isArray(list) || fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= list.length || toIndex >= list.length) return;
+    var moved = list.splice(fromIndex, 1)[0];
+    list.splice(toIndex, 0, moved);
+    setDirty(); renderReservation(); renderPanels(); showPanel(activePanelId());
+  }
+  function onReservationListDragStart(event){
+    if(!editing) return;
+    var handle = event.target.closest('[data-res-drag-handle]');
+    if(!handle) return;
+    var row = handle.closest('.reservation-row');
+    if(!row) return;
+    event.preventDefault();
+    var index = Number(row.dataset.resIndex);
+    if(Number.isNaN(index)) return;
+    reservationDrag = {fromIndex:index, currentIndex:index, row:row, listEl:row.closest('.reservation-rows')};
+    row.classList.add('dragging', 'active');
+    Array.prototype.forEach.call(reservationDrag.listEl.querySelectorAll('.reservation-row'), function(item){ if(item !== row) item.classList.remove('active', 'target'); });
+    try{ row.setPointerCapture(event.pointerId); }catch(e){}
+  }
+  function onReservationListDragMove(event){
+    if(!reservationDrag || !reservationDrag.listEl) return;
+    var targetRow = document.elementFromPoint ? document.elementFromPoint(event.clientX, event.clientY) : null;
+    targetRow = targetRow && targetRow.closest ? targetRow.closest('.reservation-row') : null;
+    Array.prototype.forEach.call(reservationDrag.listEl.querySelectorAll('.reservation-row'), function(row){ row.classList.remove('target'); });
+    if(targetRow && targetRow !== reservationDrag.row){
+      targetRow.classList.add('target');
+      var index = Number(targetRow.dataset.resIndex);
+      if(!Number.isNaN(index) && index !== reservationDrag.currentIndex){
+        var list = content.reservations[resState.category];
+        if(Array.isArray(list) && list.length){
+          var from = reservationDrag.currentIndex;
+          var moved = list.splice(from, 1)[0];
+          list.splice(index, 0, moved);
+          reservationDrag.listEl.insertBefore(reservationDrag.row, targetRow);
+          reservationDrag.currentIndex = index;
+          Array.prototype.forEach.call(reservationDrag.listEl.querySelectorAll('.reservation-row'), function(row, idx){ row.dataset.resIndex = String(idx); row.classList.remove('moving'); void row.offsetWidth; row.classList.add('moving'); });
+          setDirty();
+        }
+      }
+    }
+  }
+  function onReservationListDragEnd(){
+    if(!reservationDrag) return;
+    if(reservationDrag.row) reservationDrag.row.classList.remove('dragging', 'active');
+    reservationDrag.listEl && Array.prototype.forEach.call(reservationDrag.listEl.querySelectorAll('.reservation-row'), function(row){ row.classList.remove('target', 'moving'); });
+    reservationDrag = null;
+    renderReservation();
+  }
   function onCarouselDown(event){
     var wrapper = event.target.closest('.carousel-wrapper');
     if(!wrapper) return;
@@ -1358,6 +1423,10 @@
       var field=e.target.closest('[data-res-field]');
       if(field && resState.form) resState.form[field.dataset.resField]=field.value;
     });
+    resEl.addEventListener('pointerdown',onReservationListDragStart);
+    resEl.addEventListener('pointermove',onReservationListDragMove);
+    resEl.addEventListener('pointerup',onReservationListDragEnd);
+    resEl.addEventListener('pointercancel',onReservationListDragEnd);
     resEl.addEventListener('pointerdown',onCarouselDown);
     resEl.addEventListener('pointermove',onCarouselMove);
     resEl.addEventListener('pointerup',onCarouselUp);
