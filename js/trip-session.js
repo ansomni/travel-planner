@@ -27,6 +27,7 @@
   var tripGate = document.getElementById('tripGate');
   var tripApp = document.getElementById('tripApp');
   var statusEl = document.getElementById('tripGateStatus');
+  var codeStatusEl = document.getElementById('newTripCodeStatus');
 
   function call(name, data){ return fns.httpsCallable(name)(data).then(function(result){ return result.data; }); }
   function getTrip(code){ return call('getTrip', {code:normalizeCode(code)}); }
@@ -121,6 +122,13 @@
   function readDraft(code){ try{var raw=localStorage.getItem(draftKey(code));return raw?JSON.parse(raw):null;}catch(e){return null;} }
   function clearDraft(code){ try{localStorage.removeItem(draftKey(code));}catch(e){} }
   function setGateStatus(message, isError){ if(statusEl){ statusEl.textContent = message || ''; statusEl.classList.toggle('error', !!isError); } }
+  function updateCreateTripErrorLayout(){
+    var card = document.querySelector('.create-trip-card');
+    if(!card) return;
+    var hasError = !!(document.getElementById('newTripDateError') && !document.getElementById('newTripDateError').hidden) || !!(codeStatusEl && !codeStatusEl.hidden);
+    card.classList.toggle('has-error', hasError);
+  }
+  function setCodeStatus(message, isError){ if(codeStatusEl){ codeStatusEl.textContent = message || ''; codeStatusEl.classList.toggle('error', !!isError); codeStatusEl.hidden = !message; updateCreateTripErrorLayout(); } }
   function showGateForm(id){
     document.getElementById('tripGateHome').hidden = id !== '';
     document.getElementById('joinTripForm').hidden = id !== 'joinTripForm';
@@ -1241,6 +1249,7 @@
   function validateTripDates(showError){
     var startEl = document.getElementById('newTripStart'), endEl = document.getElementById('newTripEnd');
     var errorEl = document.getElementById('newTripDateError');
+    var errorText = '날짜 정보를 확인해 주세요.';
     var realDate = function(value){
       var m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if(!m || Number(m[1]) < 1900) return false;
@@ -1254,11 +1263,15 @@
     if(endDone && !realDate(end)) bad = true;
     if(!bad && startDone && endDone){
       var days = Math.floor((Date.parse(end+'T00:00:00Z') - Date.parse(start+'T00:00:00Z')) / 86400000) + 1;
-      if(days < 1 || days > 31) bad = true;
+      if(days < 1){ bad = true; }
+      if(days > 31){ bad = true; errorText = '1달 이상의 여행은 지원하지 않습니다.'; }
     }
-    if(showError && (!startDone || !endDone)) bad = true;
-    errorEl.hidden = !bad;
-    return !bad;
+    if(showError && (!startDone || !endDone)){ bad = true; }
+    if(!bad){ errorEl.hidden = true; updateCreateTripErrorLayout(); return true; }
+    errorEl.textContent = errorText;
+    errorEl.hidden = false;
+    updateCreateTripErrorLayout();
+    return false;
   }
   function newTrip(form){
     if(!validateTripDates(true)) return;
@@ -1285,7 +1298,13 @@
         activateTrip(code,initial,false);
       });
     }).catch(function(error){
-      setGateStatus(error.code === 'functions/already-exists' ? '이미 사용 중인 여행코드입니다.' : (error.message || '여행을 만들지 못했습니다.') + (error.code === 'functions/internal' ? ' [internal]' : ''), true);
+      if(error.code === 'functions/already-exists'){
+        setCodeStatus('이미 사용 중인 여행코드입니다.', true);
+        setGateStatus('');
+      }else{
+        setCodeStatus('');
+        setGateStatus((error.message || '여행을 만들지 못했습니다.') + (error.code === 'functions/internal' ? ' [internal]' : ''), true);
+      }
     }).then(hideLoading);
   }
   function normalizeInputDate(value){
@@ -1346,12 +1365,13 @@
     });
     document.getElementById('newTripCode').addEventListener('input',function(e){
       var value = normalizeCode(e.target.value);
-      if(!/^[A-Z0-9]{6}$/.test(value) || !navigator.onLine){ setGateStatus(''); return; }
+      if(!/^[A-Z0-9]{6}$/.test(value) || !navigator.onLine){ setCodeStatus(''); setGateStatus(''); return; }
       getTrip(value).then(function(){
         if(normalizeCode(e.target.value) !== value) return;
-        setGateStatus('이미 사용 중인 여행코드입니다.'); toast('이미 사용 중인 여행코드입니다.');
+        setCodeStatus('이미 사용 중인 여행코드입니다.', true);
+        setGateStatus('');
       }).catch(function(error){
-        if(normalizeCode(e.target.value) === value && error && error.code === 'functions/not-found') setGateStatus('');
+        if(normalizeCode(e.target.value) === value && error && error.code === 'functions/not-found'){ setCodeStatus(''); setGateStatus(''); }
       });
     });
     document.getElementById('openJoinTrip').addEventListener('click',function(){showGateForm('joinTripForm');});
